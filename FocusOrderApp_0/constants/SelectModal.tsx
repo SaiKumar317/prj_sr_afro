@@ -63,14 +63,15 @@ const SelectModal: React.FC<LabelAndSelectProps> = ({
     left: 4,
     top: -6,
     fontSize: 12,
-    color: '#888',
+    color: 'black',
     zIndex: 20,
     paddingRight: 4,
     paddingLeft: 4,
     backgroundColor: 'white',
     marginHorizontal: 12,
     fontWeight: 'bold',
-
+    borderWidth: 0.3,
+    borderColor: 'black',
     marginBottom: 5,
   };
   return (
@@ -130,7 +131,14 @@ const SelectModal: React.FC<LabelAndSelectProps> = ({
                             value === item.label && styles.selectedItem,
                           ]}
                           onPress={() => handlePressItem(item)}>
-                          <Text style={{color: 'black'}}>{item.label}</Text>
+                          <Text
+                            style={{
+                              color: 'black',
+                              fontWeight: '600',
+                              fontSize: 15,
+                            }}>
+                            {item.label}
+                          </Text>
                         </TouchableOpacity>
                       )}
                     />
@@ -168,12 +176,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    borderWidth: 0.3,
+    borderColor: 'black',
     // paddingRight: 10,
     // width: 'auto',
   },
   label: {
     fontSize: 16,
     color: '#333',
+    fontWeight: '600',
     // overflow: 'scroll',
   },
   modalOverlay: {
@@ -197,21 +208,23 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: 'black',
+    fontWeight: 'bold',
     borderRadius: 5,
     padding: 10,
     // marginBottom: 10,
-    color: '#888',
+    color: '#333',
   },
   item: {
     color: 'black',
     padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+    borderBottomWidth: 0.8,
+    borderBottomColor: '#333',
   },
   watermark: {
     fontSize: 16,
     color: '#888',
+    fontWeight: 'bold',
   },
   selectedItem: {
     backgroundColor: '#e0f7fa',

@@ -47,6 +47,7 @@ const LoginScreen: React.FC<LoginPageProps> = ({onData}) => {
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
   const [fCompanyList, setFCompanyList] = useState<any>(productsArray);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const [isSessionValid, setisSessionValid] = useState(false);
 
   useEffect(() => {
@@ -292,7 +293,9 @@ const LoginScreen: React.FC<LoginPageProps> = ({onData}) => {
     }
     // You can add additional logic here
   };
+  const handleFocus = () => setIsFocused(true);
   const handleBlur = async () => {
+    setIsFocused(false);
     // Logic for when TextInput loses focus
     console.log('Input lost focus', `${hostname}/focus8API/List/Company`);
     if (hostname && hostname.trim() !== '') {
@@ -354,14 +357,16 @@ const LoginScreen: React.FC<LoginPageProps> = ({onData}) => {
     left: 4,
     top: 14,
     fontSize: 12,
-    color: '#888',
+    color: isFocused ? '#0f6cbd' : 'black',
     zIndex: 1,
     paddingRight: 4,
     paddingLeft: 4,
     backgroundColor: 'white',
     marginHorizontal: 12,
     marginBottom: 4,
-    fontWeight: 'normal',
+    fontWeight: 'bold',
+    borderWidth: isFocused ? 0.3 : 0.3,
+    borderColor: isFocused ? '#0f6cbd' : 'black',
   };
   return (
     <>
@@ -387,13 +392,20 @@ const LoginScreen: React.FC<LoginPageProps> = ({onData}) => {
                 <View style={{paddingTop: 18}}>
                   <Animated.Text style={labelStyle}>{'Hostname'}</Animated.Text>
                   <TextInput
-                    style={styles.input}
+                    style={[
+                      styles.input,
+                      {
+                        borderWidth: isFocused ? 1 : 0.4,
+                        borderColor: isFocused ? '#0f6cbd' : 'black',
+                      },
+                    ]}
                     placeholder="Hostname"
                     placeholderTextColor={'#7d7a7a'}
                     autoCapitalize="none"
                     value={hostname}
                     onChangeText={setHostname}
                     onBlur={handleBlur}
+                    onFocus={handleFocus}
                     editable={!isLoading}
                   />
                 </View>
@@ -419,7 +431,7 @@ const LoginScreen: React.FC<LoginPageProps> = ({onData}) => {
                 <FloatingLabelInput
                   label="Username"
                   value={username}
-                  onChangeText={setUsername}
+                  onChangeText={text => setUsername(text.replace(/^\s+/, ''))}
                   kbType="default"
                   editable={!isLoading}
                   autoCapitalize="none"
@@ -447,7 +459,7 @@ const LoginScreen: React.FC<LoginPageProps> = ({onData}) => {
                 <FloatingLabelInput
                   label="Password"
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={text => setPassword(text.trim())}
                   kbType="default"
                   editable={!isLoading}
                   autoCapitalize="none"
@@ -554,12 +566,14 @@ const styles = StyleSheet.create({
     // marginBottom: 20,
     // paddingHorizontal: 10,
     borderRadius: 8,
+
     // borderBottomWidth: 1,
     // borderTopWidth: 1,
     // borderLeftWidth: 1,
     // borderRightWidth: 1,
     // borderColor: '#ccc',
     fontSize: 16,
+    fontWeight: '600',
     padding: 8,
     // marginTop: 6, // Adjust the top margin as needed
     color: 'black',
@@ -569,6 +583,8 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
     height: 50,
+    borderWidth: 0.4,
+    borderColor: 'black',
   },
   button: {
     backgroundColor: '#0f6cbd',
@@ -594,8 +610,9 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 17,
     marginRight: 5,
+    fontWeight: 'bold',
     // Add any additional styles or override default styles here
   },
   image: {

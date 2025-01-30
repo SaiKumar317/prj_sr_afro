@@ -22,6 +22,7 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  TextInput,
 } from 'react-native';
 
 const focus_rt = require('../assets/images/focus_rt.png');
@@ -43,6 +44,9 @@ import {
   insertSalesOrder,
 } from '../services/OrdersServices'; // Import your database service
 import {useFocusEffect} from '@react-navigation/native';
+import {MultiSelect} from 'react-native-element-dropdown';
+import MultiSelectModal from '../constants/MultiSelectModal';
+import FloatingLabelInput from '../constants/FloatingLabelInput';
 
 declare function alert(message?: any): void;
 let storedHostname;
@@ -80,13 +84,27 @@ function Cart({
     [key: string]: boolean;
   }>({});
 
+  const [inputQuantity, setInputQuantity] = React.useState<{
+    [key: string]: any;
+  }>({}); // Local state for input quantity
+
   const [totalVarieties, setTotalVarieties] = useState(0);
   const [loadingStates, setLoadingStates] = useState<{
     [key: string]: boolean;
   }>({});
+
+  const [pendingVochNo, setPendingVochNo] = useState<any>([]);
+
   const [showPlaceOrderModal, setShowPlaceOrderModal] = useState(false);
   const [customerAccounts, setCustomerAccounts] = useState<any[]>([]); // State to hold customer accounts
+
+  const [totalCash, setTotalCash] = useState<any>(0);
+  const [totalUpiMp, setTotalUpiMp] = useState<any>(0);
+  const [customerName, setCustomerName] = useState<any>(null);
+  const [mobileNum, setMobileNum] = useState<any>(null);
+
   const showToast = (message: React.SetStateAction<string>) => {
+    console.log('showToast', message);
     setToastMessage(message);
     setToastVisible(true);
     setTimeout(() => {
@@ -97,49 +115,104 @@ function Cart({
   const calculateBillingDetails = () => {
     let totalQty = 0;
     let totalAmt = 0;
-    // eslint-disable-next-line @typescript-eslint/no-shadow
+
     let totalVarieties = 0;
 
-    // Count items with quantity > 0
-    totalVarieties = categoryItems.filter(
-      (item: {Quantity: number}) => item.Quantity > 0,
+    // // Count items with quantity > 0
+    // totalVarieties = categoryItems.filter(
+    //   (item: {Quantity: number}) => item.Quantity > 0,
+    // ).length;
+
+    // categoryItems.forEach((item: {Quantity: number; Rate: number}) => {
+    //   if (item.Quantity) {
+    //     totalQty += item.Quantity;
+    //     totalAmt += item.Quantity * item.Rate;
+    //   }
+    // });
+
+    // Count items with quantity > 0 from inputQuantity
+    totalVarieties = Object.values(inputQuantity).filter(
+      quantity => quantity > 0,
     ).length;
 
-    categoryItems.forEach((item: {Quantity: number; Rate: number}) => {
-      if (item.Quantity) {
-        totalQty += item.Quantity;
-        totalAmt += item.Quantity * item.Rate;
+    // Calculate total quantity and total amount based on inputQuantity
+    for (const [productId, quantity] of Object.entries(inputQuantity)) {
+      const item = categoryItems.find(
+        (item: {ProductId: string}) => item.ProductId == productId,
+      );
+      if (item && quantity > 0) {
+        totalQty += quantity;
+        totalAmt += quantity * item.Rate; // Assuming item has a Rate property
       }
-    });
+    }
 
     setTotalQuantity(totalQty);
     setTotalAmount(totalAmt);
+    setTotalCash(totalAmt);
+    setTotalUpiMp(0);
     setTotalVarieties(totalVarieties);
   };
 
   // Update the billing details whenever categoryItems or cartItems change
   useEffect(() => {
     calculateBillingDetails();
-  }, [categoryItems, cartItems]);
+    AsyncStorage.getItem('POSSalePreferenceData')
+      .then(data => {
+        if (data !== null) {
+          const parsedData = JSON.parse(data);
+          console.log('POSSalePreferenceData', parsedData);
+        }
+      })
+      .catch(error => {
+        console.log('Error retrieving data', error);
+      });
+  }, [categoryItems, cartItems, inputQuantity]);
   // console.log('categoryItems', categoryItems);
   const fetchCategoryItems = React.useCallback(async () => {
     try {
       const db = await getDBConnection();
+      var storedPOSSalePreferenceData: any = await AsyncStorage.getItem(
+        'POSSalePreferenceData',
+      );
+      var parsedPOSSalesPreferences = JSON.parse(storedPOSSalePreferenceData);
 
       // Get products for the selected category using actual column names
       const [results] = await db.executeSql(
         `SELECT 
-    p.ProductId,
-    p.ProductName,
-    p.ProductCode,
-    pr.Rate,
-    p.ProductImage,
-    p.CategoryId,
-    p.CurrencyCode,
-    c.Quantity
-FROM Products p
-JOIN Prices pr on pr.ProductId = p.ProductId
-INNER JOIN Cart c ON c.ProductId = p.ProductId;
+          p.ProductId,
+          p.ProductName,
+          p.ProductCode,
+          pr.Rate,
+          p.ProductImage,
+          p.CategoryId,
+          p.CategoryName,
+          p.CurrencyId,
+          p.CurrencyCode,
+          c.Quantity,
+          pr.discountP,
+          SUM(b.BatchQty) AS TotalStock
+        FROM Products p
+        JOIN Prices pr on pr.ProductId = p.ProductId
+        JOIN Cart c on c.ProductId = p.ProductId
+        LEFT JOIN Stock b ON b.iProduct = p.ProductId
+       -- WHERE
+       -- b.iExpiryDate >= CURRENT_DATE
+        --AND pr.endDate >= CURRENT_DATE
+        --AND b.iInvTag = ${parsedPOSSalesPreferences?.warehouseId}
+        --AND pr.compBranchId = ${parsedPOSSalesPreferences?.compBranchId}
+       -- AND c.Quantity != ''
+        GROUP BY 
+    p.ProductId, 
+    p.ProductName, 
+    p.ProductCode, 
+    pr.Rate, 
+    p.ProductImage, 
+    p.CategoryId, 
+    p.CategoryName, 
+    p.CurrencyId, 
+    p.CurrencyCode
+    ORDER BY 
+    TotalStock DESC;
 `,
       );
 
@@ -161,6 +234,11 @@ INNER JOIN Cart c ON c.ProductId = p.ProductId;
         // const cartItems: any = await getCartItems();
         setItemImages(images);
         // setCartItems(cartItems);
+        const initialcartQty = products.reduce((acc, item) => {
+          acc[item.ProductId] = item.Quantity; // Set ProductId as key and Quantity as value
+          return acc;
+        }, {} as {[key: string]: number}); // Initialize as an empty object
+        setInputQuantity(initialcartQty);
       }
     } catch (error) {
       console.error('Error fetching category items:', error);
@@ -172,7 +250,10 @@ INNER JOIN Cart c ON c.ProductId = p.ProductId;
   useFocusEffect(
     React.useCallback(() => {
       setCategoryItems([]);
+      setInputQuantity({});
       setSelectedCustAcc(null);
+      setCustomerName(null);
+      setMobileNum(null);
       fetchCategoryItems(); // Fetch cart items when the screen is focused
     }, []),
   );
@@ -311,12 +392,22 @@ INNER JOIN Cart c ON c.ProductId = p.ProductId;
             (item: {ProductId: any}) => item.ProductId !== productId,
           ), // Remove the item with the matching ProductId
       );
+      // Remove the deleted item from inputQuantity state
+      setInputQuantity(prev => {
+        const newInputQuantity = {...prev}; // Create a copy of the current inputQuantity
+        delete newInputQuantity[productId]; // Delete the item with the matching ProductId
+        return newInputQuantity; // Return the updated inputQuantity
+      });
     } catch (error) {
       console.error('Error deleting item from cart:', error);
     }
   };
   const onPlaceOrder = async () => {
-    setShowPlaceOrderModal(true);
+    if (totalVarieties > 0) {
+      setShowPlaceOrderModal(true);
+    } else {
+      showToast('Please enter quantity');
+    }
     // Alert.alert('Confirm', 'Please confirm to place order', [
     //   {
     //     text: 'Cancel',
@@ -411,7 +502,16 @@ INNER JOIN Cart c ON c.ProductId = p.ProductId;
         }
       } else {
         setShowManditory(true);
-        showToast('Select Customer Account');
+        // showToast('Select Customer Account');
+        showToast(
+          !customerName || !mobileNum || mobileNum.toString()?.length < 10
+            ? `*Select ${!customerName ? 'POS Customer Name, ' : ''}${
+                !mobileNum || mobileNum.toString()?.length < 10
+                  ? 'POS Customer Mobile Number'
+                  : ''
+              }`
+            : '',
+        );
       }
     } catch (error) {
       console.error('Error placing order:', error);
@@ -428,106 +528,195 @@ INNER JOIN Cart c ON c.ProductId = p.ProductId;
       setSelectedCustAcc(null);
     }
   };
+  const handleSelectedPendingVochNo = async (data: any) => {
+    console.log('SelectedPendingVochNo', data);
+    setPendingVochNo(data);
+
+    // return reloadPage;
+  };
+
+  const handleAddProduct = async (
+    item: {
+      ProductName: any;
+      Rate: any;
+      ProductId: any;
+    },
+    quantity: any,
+  ) => {
+    const qty = quantity.toString().replace(/^0+/, '');
+    console.log('handleAddProducttest', quantity, !isNaN(quantity), qty);
+    if (quantity < 0) {
+      // await addToCart(item.ProductId, 1);
+      return;
+    } // Prevent negative quantities
+    // setLoadingStates(prev => ({...prev, [item.ProductId]: true})); // Use ProductId directly
+    try {
+      if (!isNaN(quantity)) {
+        await addToCart(item.ProductId, qty); // Add item with the specified quantity
+      } else {
+      }
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+    } finally {
+      // setLoadingStates(prev => ({...prev, [item.ProductId]: false})); // Use ProductId directly
+    }
+  };
 
   const renderItem = ({item}) => (
-    <View style={styles.item}>
+    <View style={[styles.item, {borderWidth: 0.4, borderColor: '#0f6cbd'}]}>
       <View style={styles.row}>
-        <View style={styles.imageContainer}>
-          {loadingImages[item.ProductId] ? (
-            <View style={[styles.image, styles.loadingImage]}>
-              <ActivityIndicator size="small" color="#51c7d6" />
-            </View>
-          ) : (
-            <Image
-              source={
-                itemImages[item.ProductId]
-                  ? {
-                      uri: `data:image/png;base64,${
-                        itemImages[item.ProductId]
-                      }`,
-                    }
-                  : focus_rt_black
-              }
-              style={styles.image}
-            />
-          )}
-        </View>
-        {/* Text and button on the right */}
-        <View style={styles.textContainer}>
-          {/* Product name */}
-          <View>
-            <Text style={styles.title}>{item.ProductName}</Text>
-            <Text style={styles.subText}>{item.ProductCode}</Text>
-
-            {/* Product quantity */}
-
-            {/* Product Rate */}
-            <Text style={styles.subText}>
-              Rate: {item.CurrencyCode}{' '}
-              <Text style={{color: 'black', fontWeight: 'bold'}}>
-                {item.Rate}
-              </Text>
-            </Text>
+        <View
+          style={[styles.inspect, {flexDirection: 'row', paddingBottom: 8}]}>
+          <View style={[styles.inspect, styles.imageContainer]}>
+            {loadingImages[item.ProductId] &&
+            itemImages[item.ProductId] !== 'AA==' ? (
+              <View style={[styles.image, styles.loadingImage]}>
+                <ActivityIndicator size="small" color="#51c7d6" />
+              </View>
+            ) : (
+              <Image
+                source={
+                  itemImages?.[item.ProductId] &&
+                  itemImages[item.ProductId] !== 'AA=='
+                    ? {
+                        uri: `data:image/png;base64,${
+                          itemImages[item.ProductId]
+                        }`,
+                      }
+                    : focus_rt_black
+                }
+                style={styles.image}
+              />
+            )}
           </View>
+          {/* Text and button on the right */}
+          <View style={styles.textContainer}>
+            {/* Product name */}
+            <View>
+              <Text style={styles.title}>{item.ProductName}</Text>
+              <Text style={styles.subText}>{item.ProductCode}</Text>
+
+              {/* Product quantity */}
+              <Text style={styles.subText}>
+                Available Stock:{' '}
+                <Text
+                  style={{color: 'black', fontWeight: 'bold', fontSize: 17}}>
+                  {item.TotalStock}
+                </Text>
+              </Text>
+              {/* Product Rate */}
+              <Text style={styles.subText}>
+                Rate: {item.CurrencyCode}{' '}
+                <Text
+                  style={{color: 'black', fontWeight: 'bold', fontSize: 17}}>
+                  {item.Rate}
+                </Text>
+              </Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.quantityContainer}>
+          {/* Quantity */}
+          <Text style={styles.subText}>Quantity: </Text>
+
+          {/* Add button */}
 
           <View style={styles.quantityContainer}>
-            {/* Quantity */}
-            <Text style={styles.subText}>Quantity: </Text>
-
-            {/* Add button */}
-
-            <View style={styles.quantityContainer}>
-              {item?.Quantity == 1 ? (
-                <TouchableOpacity
-                  style={styles.quantityButton}
-                  onPress={() => handleDeleteItem(item?.ProductId)}>
-                  <FontAwesomeIcon
-                    icon={faTrashAlt}
-                    size={20}
-                    color="#51c7d6"
-                  />
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={styles.quantityButton}
-                  disabled={loadingStates[`dec_${item.ProductId}`]}
-                  onPress={() =>
-                    handleDecrementQuantity(item?.ProductId, item?.Quantity)
-                  }>
-                  {loadingStates[`dec_${item.ProductId}`] ? (
-                    <ActivityIndicator size="small" color="white" />
-                  ) : (
-                    <Text style={styles.quantityText}>-</Text>
-                  )}
-                </TouchableOpacity>
-              )}
-
-              <Text style={styles.quantityText}>{item?.Quantity}</Text>
+            {/* {item?.Quantity == 1 ? (
               <TouchableOpacity
                 style={styles.quantityButton}
-                disabled={loadingStates[`inc_${item.ProductId}`]}
-                onPress={() =>
-                  handleIncrementQuantity(item?.ProductId, item?.Quantity)
-                }>
-                {loadingStates[`inc_${item.ProductId}`] ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <Text style={styles.quantityText}>+</Text>
-                )}
+                onPress={() => handleDeleteItem(item?.ProductId)}>
+                <FontAwesomeIcon icon={faTrashAlt} size={20} color="#51c7d6" />
               </TouchableOpacity>
-              {/* Delete Button */}
-              {item?.Quantity > 1 && (
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => handleDeleteItem(item?.ProductId)}>
-                  <FontAwesomeIcon
-                    icon={faTrashAlt}
-                    size={20}
-                    color="#51c7d6"
-                  />
-                </TouchableOpacity>
+            ) : ( */}
+            {/* <TouchableOpacity
+              style={styles.quantityButton}
+              disabled={loadingStates[`dec_${item.ProductId}`]}
+              onPress={() =>
+                handleDecrementQuantity(item?.ProductId, item?.Quantity)
+              }>
+              {loadingStates[`dec_${item.ProductId}`] ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Text style={styles.quantityText}>-</Text>
               )}
-            </View>
+            </TouchableOpacity> */}
+            {/* // )} */}
+
+            {/* <Text style={styles.quantityText}>{item?.Quantity}</Text>
+            <TouchableOpacity
+              style={styles.quantityButton}
+              disabled={loadingStates[`inc_${item.ProductId}`]}
+              onPress={() =>
+                handleIncrementQuantity(item?.ProductId, item?.Quantity)
+              }>
+              {loadingStates[`inc_${item.ProductId}`] ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Text style={styles.quantityText}>+</Text>
+              )}
+            </TouchableOpacity> */}
+            {/* Delete Button */}
+            <TextInput
+              // editable={!loadingStates[item.ProductId]}
+              // value={item?.Quantity.toString()}
+              value={inputQuantity?.[item?.ProductId]?.toString()}
+              placeholder="Add Quantity"
+              placeholderTextColor="#8e918e"
+              onChangeText={quantity => {
+                const parsedQuantity = parseInt(quantity);
+
+                if (!isNaN(parsedQuantity)) {
+                  handleAddProduct(item, parsedQuantity);
+                  setInputQuantity(prev => ({
+                    ...prev,
+                    [item?.ProductId]: parsedQuantity, // Update with valid quantity
+                  }));
+                } else {
+                  handleAddProduct(item, quantity);
+                  setInputQuantity(prev => ({
+                    ...prev,
+                    [item?.ProductId]: '', // Update with valid quantity
+                  }));
+                  // Handle invalid input (optional: show an error message, etc.)
+                  console.log('Invalid quantity entered');
+                }
+              }}
+              // onBlur={() => {
+              //   const parsedQuantity = parseInt(
+              //     inputQuantity[item.ProductId],
+              //   );
+
+              //   if (!isNaN(parsedQuantity)) {
+              //     handleAddProduct(item, inputQuantity[item.ProductId]);
+              //   }
+              // }} // Save to cart on blur
+              // onChangeText={quantity => {
+              //   const parsedQuantity = parseInt(quantity) || 0; // Parse the input quantity
+              //   handleAddProduct(item, parsedQuantity); // Update cart in real-time
+              // }}
+              keyboardType="phone-pad"
+              style={{
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: '#0f6cbd',
+                fontSize: 15,
+                fontWeight: 'bold',
+                padding: 8,
+                color: 'black',
+                backgroundColor: '#daedf5',
+                shadowOpacity: 0.25,
+                shadowRadius: 3.84,
+                elevation: 5,
+                height: 40,
+              }}
+            />
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => handleDeleteItem(item?.ProductId)}>
+              <FontAwesomeIcon icon={faTrashAlt} size={20} color="#0f6cbd" />
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -538,7 +727,7 @@ INNER JOIN Cart c ON c.ProductId = p.ProductId;
   const fetchCustomerAccounts = async () => {
     try {
       const db = await getDBConnection();
-      const [results] = await db.executeSql(`SELECT * FROM Customers`); // Adjust the table name as needed
+      const [results] = await db.executeSql('SELECT * FROM Customers'); // Adjust the table name as needed
 
       const customerAccounts = [];
       for (let i = 0; i < results.rows.length; i++) {
@@ -562,8 +751,33 @@ INNER JOIN Cart c ON c.ProductId = p.ProductId;
       setCustomerAccounts(accounts); // Set the fetched accounts to state
     };
 
-    loadCustomerAccounts();
+    // loadCustomerAccounts();
   }, [reloadCategory]);
+
+  // Function to handle cash input change
+  const handleCashChange = (text: string) => {
+    const numericValue = text.replace(/[^0-9]/g, ''); // Allow only numbers
+    const cashValue = parseInt(numericValue || '0', 10);
+
+    if (cashValue <= totalAmount) {
+      setTotalCash(numericValue.replace(/^0+/, '') || '0');
+      // Calculate UPI/MP based on total amount
+      const newUpiMp = totalAmount - parseInt(numericValue || '0', 10);
+      setTotalUpiMp(newUpiMp >= 0 ? newUpiMp.toString() : '0'); // Ensure UPI/MP is not negative
+    }
+  };
+
+  // Function to handle UPI/MP input change
+  const handleUpiMpChange = (text: string) => {
+    const numericValue = text.replace(/[^0-9]/g, ''); // Allow only numbers
+    const upiMpValue = parseInt(numericValue || '0', 10);
+    if (upiMpValue <= totalAmount) {
+      setTotalUpiMp(numericValue.replace(/^0+/, '') || '0');
+      // Calculate cash based on total amount
+      const newCash = totalAmount - parseInt(numericValue || '0', 10);
+      setTotalCash(newCash >= 0 ? newCash.toString() : '0'); // Ensure cash is not negative
+    }
+  };
 
   return (
     <>
@@ -571,12 +785,20 @@ INNER JOIN Cart c ON c.ProductId = p.ProductId;
       {categoryItems?.length > 0 ? (
         <>
           <View style={styles.menuDropDown}>
-            <FlatList
-              data={categoryItems}
-              renderItem={renderItem}
-              keyExtractor={(item, index) => index.toString()}
-              numColumns={1}
-            />
+            <View
+              style={{
+                width: Dimensions.get('window').width,
+                flex: 1,
+                // paddingBottom: 100,
+              }}>
+              <FlatList
+                data={categoryItems}
+                renderItem={renderItem}
+                keyExtractor={(item, index) => index.toString()}
+                numColumns={1}
+                style={{flex: 1}}
+              />
+            </View>
 
             {/* Billing Details Section */}
             <View style={styles.billingDetailsContainer}>
@@ -625,6 +847,29 @@ INNER JOIN Cart c ON c.ProductId = p.ProductId;
           </ImageBackground>
         </>
       )}
+      {toastVisible && (
+        <View style={styles.toastContainer}>
+          <View style={styles.toast}>
+            <View
+              style={{
+                backgroundColor: 'white',
+                width: 33,
+                height: 33,
+                borderRadius: 25,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 10,
+              }}>
+              <Image
+                source={require('../assets/images/focus_rt.png')}
+                style={styles.toastImage}
+                resizeMode="contain"
+              />
+            </View>
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </View>
+        </View>
+      )}
       <Modal
         visible={showPlaceOrderModal}
         transparent={true}
@@ -642,8 +887,68 @@ INNER JOIN Cart c ON c.ProductId = p.ProductId;
             {/* <Text style={styles.modalMessage}>
               Are you sure you want to place the order?
             </Text> */}
-            <View style={{width: '100%'}}>
-              <SelectModal
+            <ScrollView style={{width: '100%'}}>
+              <View
+                style={[
+                  // styles.inspect,
+                  {
+                    flex: 1,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    gap: 20,
+                    padding: 10,
+                  },
+                ]}>
+                <View style={{flex: 1}}>
+                  <FloatingLabelInput
+                    label={'Cash'}
+                    value={totalCash.toString()}
+                    onChangeText={handleCashChange}
+                    keyboardType="phone-pad"
+                    editable={!isLoading}
+                    autoCapitalize="none"
+                  />
+                </View>
+                <View style={{flex: 1}}>
+                  <FloatingLabelInput
+                    label={'UPI/MP'}
+                    value={totalUpiMp.toString()}
+                    onChangeText={handleUpiMpChange}
+                    keyboardType="phone-pad"
+                    editable={!isLoading}
+                    autoCapitalize="none"
+                  />
+                </View>
+              </View>
+
+              <View style={{padding: 10}}>
+                <FloatingLabelInput
+                  label={'POS Customer Name'}
+                  value={customerName}
+                  onChangeText={text =>
+                    setCustomerName(text.replace(/^\s+/, ''))
+                  }
+                  kbType="default"
+                  editable={!isLoading}
+                  autoCapitalize="none"
+                />
+              </View>
+              <View style={{padding: 10}}>
+                <FloatingLabelInput
+                  label={'POS Customer Mobile Number'}
+                  value={mobileNum}
+                  onChangeText={mobileNum => {
+                    const inputNum = mobileNum.replace(/[^0-9]/g, '');
+                    if (inputNum.length <= 16) {
+                      setMobileNum(inputNum.replace(/^0+/, '') || '0');
+                    }
+                  }}
+                  keyboardType="phone-pad"
+                  editable={!isLoading}
+                  autoCapitalize="none"
+                />
+              </View>
+              {/* <SelectModal
                 label="Customer Account"
                 onData={(data: any) => handleSelectedCustAcc(data)}
                 value={selectedCustAcc?.label || null}
@@ -652,12 +957,30 @@ INNER JOIN Cart c ON c.ProductId = p.ProductId;
                 //   (fCompanyList && fCompanyList?.length > 0 && fCompanyList) ||
                 //   productsArray
                 // }
-              />
+              /> */}
+              {/* <MultiSelectModal
+                label="Customer Account"
+                value={pendingVochNo}
+                items={customerAccounts}
+                onData={(data: any) => handleSelectedPendingVochNo(data)}
+                clearMultiSelect={undefined}
+              /> */}
+
               {showManditory && (
-                <Text style={{color: 'red'}}>*Select Customer Account</Text>
+                <Text style={{color: 'red'}}>
+                  {!customerName ||
+                  !mobileNum ||
+                  mobileNum.toString()?.length < 10
+                    ? `*Select ${!customerName ? 'POS Customer Name, ' : ''}${
+                        !mobileNum || mobileNum.toString()?.length < 10
+                          ? 'POS Customer Mobile Number'
+                          : ''
+                      }`
+                    : ''}
+                </Text>
               )}
-            </View>
-            <View style={styles.billingDetailsContainer}>
+            </ScrollView>
+            <View style={[styles.billingDetailsContainer, {marginBottom: 60}]}>
               <Text style={styles.billingDetailsHeader}>Billing Details</Text>
               <View style={styles.billingDetailsContent}>
                 <Text style={styles.billingText}>
@@ -695,23 +1018,25 @@ INNER JOIN Cart c ON c.ProductId = p.ProductId;
           </TouchableOpacity>
         </TouchableOpacity>
         {toastVisible && (
-          <View
-            style={{
-              position: 'absolute',
-              top: '15%',
-              width: '100%',
-              alignItems: 'center',
-            }}>
-            <View
-              style={{
-                backgroundColor: '#f29698', //'rgba(0, 0, 0, 0.8)',
-                paddingHorizontal: 20,
-                paddingVertical: 10,
-                borderRadius: 10,
-              }}>
-              <Text style={{color: 'black', fontWeight: 'bold', fontSize: 15}}>
-                {toastMessage}
-              </Text>
+          <View style={styles.toastContainer}>
+            <View style={styles.toast}>
+              <View
+                style={{
+                  backgroundColor: 'white',
+                  width: 33,
+                  height: 33,
+                  borderRadius: 25,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 10,
+                }}>
+                <Image
+                  source={require('../assets/images/focus_rt.png')}
+                  style={styles.toastImage}
+                  resizeMode="contain"
+                />
+              </View>
+              <Text style={styles.toastText}>{toastMessage}</Text>
             </View>
           </View>
         )}
@@ -720,18 +1045,55 @@ INNER JOIN Cart c ON c.ProductId = p.ProductId;
   );
 }
 const styles = StyleSheet.create({
+  toastContainer: {
+    position: 'absolute',
+    top: 30,
+    width: '100%',
+    alignItems: 'center',
+    zIndex: 9999,
+    paddingHorizontal: 16,
+  },
+  toast: {
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  toastImage: {
+    width: 25,
+    height: 25,
+    // marginRight: 10,
+    marginTop: 5,
+    borderRadius: 25,
+  },
+  toastText: {
+    color: 'white',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
   title: {
     fontFamily: 'Poppins-Bold', // Bold for title
-    fontSize: 15,
-    color: '#333',
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
+    color: 'black',
   },
   subText: {
     fontFamily: 'Open Sans-Regular', // Regular for subtext
     fontSize: 14,
-    color: '#666',
+    // color: '#666',
+    color: '#4d4c4c',
     marginTop: 5,
-    fontWeight: '500',
+    fontWeight: '700',
   },
   addButtonText: {
     fontFamily: 'Lato-Bold', // Bold for button text
@@ -760,12 +1122,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 15,
     marginTop: 20,
-    marginBottom: 30,
     borderRadius: 10,
     elevation: 5,
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 5,
+    borderWidth: 0.4,
+    borderColor: '#0f6cbd',
   },
   billingDetailsHeader: {
     fontFamily: 'Poppins-Bold',
@@ -781,12 +1144,15 @@ const styles = StyleSheet.create({
   billingText: {
     fontFamily: 'Open Sans-Regular',
     fontSize: 16,
-    color: '#666',
+    // color: '#666',
+    color: '#4d4c4c',
+    fontWeight: '700',
   },
   buttonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 17,
     marginRight: 5,
+    fontWeight: 'bold',
   },
   buttonPO: {
     position: 'absolute',
@@ -818,12 +1184,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 6,
+    borderWidth: 0.4,
+    borderColor: '#0f6cbd',
   },
 
   menuDropDown: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'flex-start', // Changed to align at the top
+    justifyContent: 'space-between', // Changed to align at the top
     backgroundColor: '#f9f9f9', // Light background color for the whole list
     height: screenHeight,
     padding: 15, // Added more padding to the container for better spacing
@@ -835,10 +1203,10 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    marginVertical: 10, // Increased vertical spacing between items
+    // flexDirection: 'row',
+    // alignItems: 'center',
+    // justifyContent: 'flex-start',
+    margin: 10, // Increased vertical spacing between items
     padding: 15,
     backgroundColor: '#ffffff',
 
@@ -848,13 +1216,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowOffset: {width: 0, height: 3},
     shadowRadius: 5,
-    width: '100%', // Ensures the item stretches across the container width
+    // width: '100%', // Ensures the item stretches across the container width
     // backgroundColor: 'linear-gradient(135deg, #ff6a00, #fbbc05)'
   },
   row: {
-    flexDirection: 'row', // Image and text in a row
+    flexDirection: 'column', // Image and text in a row
     alignItems: 'center',
   },
+  // inspect: {
+  //   borderWidth: 2, // 2px border width
+  //   borderColor: '#000000', // Black border color
+  //   borderStyle: 'solid', // Solid border style (default is solid)
+  // },
   imageContainer: {
     marginRight: 15, // Space between image and text
   },
@@ -862,6 +1235,7 @@ const styles = StyleSheet.create({
     width: 80, // Adjust the image size
     height: 80,
     borderRadius: 10,
+    marginTop: 5,
   },
   textContainer: {
     flex: 1, // Take up the remaining space
@@ -879,11 +1253,17 @@ const styles = StyleSheet.create({
   //   color: '#666',
   //   marginTop: 5,
   // },
+  divider: {
+    borderColor: '#9e9d9b',
+    backgroundColor: '#9e9d9b',
+    borderWidth: 0.3,
+    width: '100%',
+  },
   quantityContainer: {
     minWidth: 60,
     flexDirection: 'row', // Layout items in a row
     alignItems: 'center',
-    marginTop: 10, // Add some space between the product Rate and quantity
+    marginTop: 5, // Add some space between the product Rate and quantity
   },
   addButton: {
     marginLeft: 10, // Space between Quantity text and Add button
@@ -943,11 +1323,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    height: '70%',
+    height: '100%',
     backgroundColor: 'white',
     borderRadius: 10,
-    padding: 20,
-    width: '90%',
+    padding: 25,
+    // margin: 30,
+    width: '100%',
     alignItems: 'center',
     elevation: 5,
     shadowColor: '#000',
@@ -957,6 +1338,7 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+    margin: 10,
   },
   modalTitle: {
     fontSize: 20,
@@ -972,12 +1354,12 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     flexDirection: 'row', // Ensure buttons are in a row
-    justifyContent: 'space-between', // Space between buttons
+    justifyContent: 'flex-start', // Space between buttons
     width: '100%', // Full width for the container
     paddingHorizontal: 20,
     marginTop: 10, // Add some margin to separate from the message
     position: 'absolute',
-    bottom: 20,
+    bottom: 30,
   },
   noButton: {
     backgroundColor: '#0f6cbd',

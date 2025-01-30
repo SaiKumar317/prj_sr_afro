@@ -10,6 +10,7 @@ import {FontAwesomeIcon} from '@fortawesome/react-native-fontawesome';
 import {faArrowLeft, faCartShopping} from '@fortawesome/free-solid-svg-icons';
 import renderLoadingView from '../constants/LoadingView';
 import CategoryItemsPage from '../pages/CategoryItemsPage';
+import {BackHandler} from 'react-native';
 
 let masterResponse = '';
 
@@ -33,6 +34,20 @@ function CategoryItems({
   };
   useEffect(() => {
     getSelectedCategory();
+  }, []);
+
+  useEffect(() => {
+    const backAction = () => {
+      navigation.goBack();
+      return true;
+    };
+
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction,
+    );
+
+    return () => backHandler.remove();
   }, []);
 
   // Assuming you are using 'useState' to track parsedSelectedCategory
@@ -94,12 +109,21 @@ function CategoryItems({
                 flexDirection: 'row',
                 alignItems: 'center',
                 marginRight: 10,
+                marginLeft: 5,
               }}>
-              <FontAwesomeIcon icon={faArrowLeft} size={20} color="white" />
+              <FontAwesomeIcon icon={faArrowLeft} size={26} color="white" />
             </View>
           </TouchableOpacity>
-          <Text style={{color: 'white', fontSize: 18, marginRight: 'auto'}}>
-            {parsedSelectedCategory?.CategoryName}
+          <Text
+            style={{
+              color: 'white',
+              fontSize: 20,
+              marginRight: 'auto',
+              fontWeight: 'bold',
+            }}>
+            {parsedSelectedCategory?.CategoryName
+              ? parsedSelectedCategory?.CategoryName
+              : 'Others'}
           </Text>
           <View style={{flexDirection: 'row', alignItems: 'center'}}>
             <TouchableOpacity
@@ -108,11 +132,11 @@ function CategoryItems({
               <View style={{alignItems: 'center', marginRight: 15}}>
                 <FontAwesomeIcon
                   icon={faCartShopping}
-                  size={23}
+                  size={25}
                   color="white"
                 />
                 <Text
-                  style={{color: 'white', fontSize: 10, textAlign: 'center'}}>
+                  style={{color: 'white', fontSize: 12, textAlign: 'center'}}>
                   Go To Cart
                 </Text>
               </View>

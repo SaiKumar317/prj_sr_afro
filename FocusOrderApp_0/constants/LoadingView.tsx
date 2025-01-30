@@ -1,6 +1,7 @@
 /* eslint-disable react-native/no-inline-styles */
 import React from 'react';
 import {View, ActivityIndicator} from 'react-native';
+import {Text} from 'react-native-paper';
 
 const renderLoadingView = () => (
   <View
@@ -16,6 +17,15 @@ const renderLoadingView = () => (
       zIndex: 5003,
     }}>
     <ActivityIndicator size="large" color="#007bff" />
+    <Text
+      style={{
+        marginTop: 10,
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: 'black',
+      }}>
+      Please wait...
+    </Text>
   </View>
 );
 

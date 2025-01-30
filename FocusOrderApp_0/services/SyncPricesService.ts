@@ -24,7 +24,7 @@ export const syncPrices = async () => {
                     p.iMasterId ProductId, 
                     p.sName ProductName,
                     p.sCode ProductCode,
-                    ISNULL((SELECT TOP 1 fVal0 
+                    ISNULL((SELECT TOP 1 CAST(fVal0 AS VARCHAR) + ',' + CAST(iTagId AS VARCHAR) + ',' + CAST(fVal1 AS VARCHAR) + ','+ CAST(fVal2 AS VARCHAR) + ','+ CAST(fVal3 AS VARCHAR) + ','+ CAST(fVal4 AS VARCHAR) + ',' + CONVERT(VARCHAR, dbo.IntToDate(spb.iEndDate), 103)  
                             FROM mCore_SellingPriceBookDetails spb 
                             JOIN mCore_SellingPriceBookHeader sph ON spb.iPriceBookId = sph.iPriceBookId
                             WHERE spb.iProductId = p.iMasterId 
@@ -34,7 +34,7 @@ export const syncPrices = async () => {
                             AND CASE WHEN spb.iEndDate = 0 THEN dbo.DateToInt(GETDATE()) 
                             ELSE spb.iEndDate END
                             ORDER BY CASE WHEN spb.iEndDate = 0 THEN dbo.DateToInt(GETDATE()) 
-                            ELSE spb.iEndDate END DESC), 0) AS Rate
+                            ELSE spb.iEndDate END DESC), 0) AS sellerPB
                   FROM mCore_Product p 
                   JOIN muCore_Product mp ON mp.iMasterId = p.iMasterId
                   WHERE iStatus = 0 AND bGroup = 0 AND p.iMasterId <> 0`,

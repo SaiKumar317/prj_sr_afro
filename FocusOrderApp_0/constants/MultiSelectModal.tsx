@@ -13,6 +13,7 @@ import {
   TouchableWithoutFeedback,
   Animated,
   TextStyle,
+  FlatList,
 } from 'react-native';
 
 interface LabelAndSelectProps {
@@ -113,7 +114,16 @@ const MultiSelectModal: React.FC<LabelAndSelectProps> = ({
             <Text style={styles.watermark}>{label}</Text>
           ) : (
             <Text numberOfLines={1} ellipsizeMode="tail" style={styles.label}>
-              {selectedItems.map((item: any) => item.label).join(', ')}
+              {/* {selectedItems.map((item: any) => item.label).join(', ')} */}
+              {selectedItems.length === items.length
+                ? 'All are selected'
+                : selectedItems.length > 1
+                ? `${selectedItems[0].label} + ${selectedItems.length - 1}`
+                : selectedItems[0].label}
+
+              {/* {selectedItems.length === items.length
+                ? 'All are selected'
+                : ' selected'} */}
             </Text>
           )}
         </View>
@@ -160,7 +170,7 @@ const MultiSelectModal: React.FC<LabelAndSelectProps> = ({
                         {allSelected ? 'Deselect All' : 'Select All'}
                       </Text>
                     </TouchableOpacity>
-                    <ScrollView>
+                    {/* <ScrollView>
                       {filteredItems.map((item: any, index: number) => (
                         <TouchableOpacity
                           key={index}
@@ -172,7 +182,22 @@ const MultiSelectModal: React.FC<LabelAndSelectProps> = ({
                           <Text style={{color: 'black'}}>{item.label}</Text>
                         </TouchableOpacity>
                       ))}
-                    </ScrollView>
+                    </ScrollView> */}
+                    <FlatList
+                      data={items}
+                      keyExtractor={(item, index) => index.toString()}
+                      renderItem={({item}) => (
+                        <TouchableOpacity
+                          // style={styles.item}
+                          style={[
+                            styles.item,
+                            selectedItems.includes(item) && styles.selectedItem,
+                          ]}
+                          onPress={() => handlePressItem(item)}>
+                          <Text style={{color: 'black'}}>{item.label}</Text>
+                        </TouchableOpacity>
+                      )}
+                    />
                     <View style={styles.buttonContainer}>
                       <TouchableOpacity
                         style={styles.applyButton}

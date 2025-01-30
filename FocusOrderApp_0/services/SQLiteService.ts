@@ -87,7 +87,13 @@ export const createPricesTable = async (db: SQLite.SQLiteDatabase) => {
     ProductId INTEGER PRIMARY KEY,
     ProductName TEXT,
     ProductCode TEXT,
-    Rate REAL
+    Rate REAL,
+    compBranchId INTEGER,
+    endDate DATE,  
+    discountP REAL, 
+    discountAmt REAL, 
+    vat REAL, 
+    excise REAL
   );`;
 
   await db.executeSql(query);
@@ -98,16 +104,54 @@ export const insertPrices = async (db: SQLite.SQLiteDatabase, prices: any[]) => 
     ProductId, 
     ProductName, 
     ProductCode,
-    Rate
-  ) VALUES (?, ?, ?, ?);`;
+    Rate,
+    compBranchId,
+    endDate,
+    discountP,
+    discountAmt,
+    vat,
+    excise
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
 
   await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
     prices.forEach(price => {
-      const { ProductId, ProductName, ProductCode, Rate } = price;
-      tx.executeSql(insertQuery, [ProductId, ProductName, ProductCode, Rate]);
+      const { ProductId, ProductName, ProductCode, sellerPB } = price;
+      console.log("sellerPB", sellerPB, price);
+
+      // Split the sellerPB string by commas to create an array
+      const sellerPBArray = sellerPB.split(',');
+
+      // Map the array values to appropriate types
+      const parsedSellerPB = {
+        rate: !sellerPBArray?.[0] ? null : parseFloat(sellerPBArray[0]),        // 0 -> null or Float
+        compBranchId: !sellerPBArray?.[1] ? null : parseInt(sellerPBArray[1]),  // 0 -> null or Integer
+        discountP: !sellerPBArray?.[2] ? 0 : parseFloat(sellerPBArray[2]),   // 0 -> 0 or Float
+        discountAmt: !sellerPBArray?.[3] ? 0 : parseFloat(sellerPBArray[3]), // 0 -> 0 or Float
+        vat: !sellerPBArray?.[4] ? 0 : parseFloat(sellerPBArray[4]),         // 0 -> 0 or Float
+        excise: !sellerPBArray?.[5] ? 0 : parseFloat(sellerPBArray[5]),      // 0 -> 0 or Float
+        endDate: !sellerPBArray?.[6] ? null : new Date(sellerPBArray[6].split('/').reverse().join('-')).toISOString(), // 0 -> null or Date
+      };
+
+      // Insert each price item into the database
+      tx.executeSql(
+        insertQuery,
+        [
+          ProductId,
+          ProductName,
+          ProductCode,
+          parsedSellerPB.rate,
+          parsedSellerPB.compBranchId,
+          parsedSellerPB.endDate,
+          parsedSellerPB.discountP,
+          parsedSellerPB.discountAmt,
+          parsedSellerPB.vat,
+          parsedSellerPB.excise,
+        ]
+      );
     });
   });
 };
+
 
 
 const executeTransaction = async (db: SQLite.SQLiteDatabase) => {
@@ -128,7 +172,7 @@ export const dropTable = async (db: SQLite.SQLiteDatabase, tableName: string) =>
 };
 
 export const recreateProductsTable = async (db: SQLite.SQLiteDatabase) => {
-  await dropTable(db, 'Products'); // Drop the existing Products table
+  // await dropTable(db, 'Products'); // Drop the existing Products table
   await createProductsTable(db);    // Create a new Products table
 };
 
@@ -147,4 +191,37 @@ export const createProductsTable = async (db: SQLite.SQLiteDatabase) => {
   );`;
 
   await db.executeSql(query);
+};
+
+// Create Stock table for available stock
+export const createStockTable = async (db: SQLite.SQLiteDatabase) => {
+  const query = `CREATE TABLE IF NOT EXISTS Stock (
+    sBatchNo TEXT,
+    iBatchId INTEGER,
+    iExpiryDate TEXT,
+    BatchQty REAL,
+    iProduct INTEGER,
+    iInvTag INTEGER
+  );`;
+
+  await db.executeSql(query);
+};
+
+// Insert data into Stock table
+export const insertStockData = async (db: SQLite.SQLiteDatabase, stockData: any[]) => {
+  const insertQuery = `INSERT INTO Stock (
+    sBatchNo, 
+    iBatchId, 
+    iExpiryDate,
+    BatchQty,
+    iProduct,
+    iInvTag
+  ) VALUES (?, ?, ?, ?, ?, ?);`;
+
+  await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
+    stockData.forEach(stock => {
+      const { sBatchNo, iBatchId, iExpiryDate, BatchQty, iProduct, iInvTag } = stock;
+      tx.executeSql(insertQuery, [sBatchNo, iBatchId, iExpiryDate, BatchQty, iProduct, iInvTag]);
+    });
+  });
 };

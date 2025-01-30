@@ -31,6 +31,7 @@ import {
   faTags,
   faCartFlatbedSuitcase,
   faRoute,
+  faCubesStacked,
 } from '@fortawesome/free-solid-svg-icons';
 import renderLoadingView from '../constants/LoadingView';
 import Features from './Features';
@@ -42,6 +43,8 @@ import {syncPrices} from '../services/SyncPricesService';
 import {getSalesOrderCount} from '../services/OrdersServices';
 import getSyncOrders from '../pages/getSyncOrders';
 import CategoryItems from './CategoryItems';
+import PreferencesPage from '../pages/PreferencesPage';
+import {syncStock} from '../services/SyncStock';
 
 declare function alert(message?: any): void;
 const Stack = createNativeStackNavigator();
@@ -92,7 +95,7 @@ function TabStack({
               }
             }}
             style={{marginLeft: 15}}>
-            <FontAwesomeIcon icon={faBars} size={20} color="white" />
+            <FontAwesomeIcon icon={faBars} size={27} color="white" />
           </TouchableOpacity>
         ),
         tabBarActiveTintColor: '#0f6cbd',
@@ -322,13 +325,13 @@ function MainTabs({
           </View>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.drawerItem}>
+        {/* <TouchableOpacity style={styles.drawerItem}>
           <View style={styles.menuItem}>
             <FontAwesomeIcon icon={faMoneyBillWave} size={20} color="#0f6cbd" />
             <Text style={styles.menuItemText}>Collections</Text>
           </View>
-        </TouchableOpacity>
-
+        </TouchableOpacity> */}
+        {/* 
         <TouchableOpacity
           style={styles.drawerItem}
           onPress={async () => {
@@ -348,7 +351,7 @@ function MainTabs({
             <FontAwesomeIcon icon={faUsers} size={20} color="#0f6cbd" />
             <Text style={styles.menuItemText}>Sync Customers</Text>
           </View>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <TouchableOpacity
           style={styles.drawerItem}
@@ -368,6 +371,26 @@ function MainTabs({
           <View style={styles.menuItem}>
             <FontAwesomeIcon icon={faBoxes} size={20} color="#0f6cbd" />
             <Text style={styles.menuItemText}>Sync Items</Text>
+          </View>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.drawerItem}
+          onPress={async () => {
+            drawerRef.current?.closeDrawer();
+            setIsLoading(true);
+            try {
+              const result: any = await syncStock();
+              alert(result.message);
+              setReloadCategory(prevState => !prevState);
+            } catch (error: any) {
+              alert('Failed to sync items: ' + error.message);
+            } finally {
+              setIsLoading(false);
+            }
+          }}>
+          <View style={styles.menuItem}>
+            <FontAwesomeIcon icon={faCubesStacked} size={20} color="#0f6cbd" />
+            <Text style={styles.menuItemText}>Sync Available Stock</Text>
           </View>
         </TouchableOpacity>
 
@@ -466,6 +489,16 @@ function MainTabs({
               headerTintColor: 'white',
               headerTitleStyle: {fontWeight: 'bold'},
             }}>
+            <Stack.Screen
+              name="PreviousPage"
+              children={props => (
+                <PreferencesPage
+                  SessionId={undefined}
+                  handleBackPage={handleBackPage}
+                  {...props} // Pass any additional props if needed
+                />
+              )}
+            />
             <Stack.Screen name="TabStack">
               {props => (
                 <TabStack
@@ -540,6 +573,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 16,
     color: '#333',
+    fontWeight: '500',
   },
   logoutButton: {
     padding: 16,
@@ -577,6 +611,7 @@ const styles = StyleSheet.create({
   companyName: {
     fontSize: 14,
     color: '#666',
+    fontWeight: 'bold',
   },
 });
 

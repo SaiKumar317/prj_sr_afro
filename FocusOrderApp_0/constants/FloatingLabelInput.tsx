@@ -26,14 +26,16 @@ const FloatingLabelInput: React.FC<FloatingLabelInputProps> = ({
     left: 4,
     top: isFocused ? 14 : value ? 14 : 14,
     fontSize: 12,
-    color: isFocused ? 'blue' : '#888',
+    color: isFocused ? '#0f6cbd' : 'black',
     zIndex: 1,
     paddingRight: 4,
     paddingLeft: 4,
     backgroundColor: 'white',
     marginHorizontal: 12,
     marginBottom: 4,
-    fontWeight: isFocused ? 'normal' : 'bold',
+    fontWeight: isFocused ? 'bold' : 'bold',
+    borderWidth: isFocused ? 0.3 : 0.3,
+    borderColor: isFocused ? '#0f6cbd' : 'black',
   };
 
   return (
@@ -53,8 +55,10 @@ const FloatingLabelInput: React.FC<FloatingLabelInputProps> = ({
           // borderTopWidth: 1,
           // borderLeftWidth: 1,
           // borderRightWidth: 1,
-          // borderColor: '#ccc',
+          borderWidth: isFocused ? 1 : 0.4,
+          borderColor: isFocused ? '#0f6cbd' : 'black',
           fontSize: 16,
+          fontWeight: '600',
           padding: 8,
           // marginTop: 6, // Adjust the top margin as needed
           color: 'black',

@@ -39,12 +39,12 @@ function App() {
       const storedUsername = await AsyncStorage.getItem('username');
       console.log('isSessionValid', isSessionValid);
       if (isSessionValid) {
-        showToast(`Successfully Logged in as ${storedUsername}`);
+        // showToast(`Successfully Logged in as ${storedUsername}`);
       } else {
         if (storedUsername) {
-          showToast(`${storedUsername} User Logged Out`);
+          // showToast(`${storedUsername} User Logged Out`);
         } else {
-          showToast('User Logged Out');
+          // showToast('User Logged Out');
         }
       }
     };
@@ -67,6 +67,7 @@ function App() {
             // Clear session data if confirmed
             await AsyncStorage.removeItem('username');
             await AsyncStorage.removeItem('password');
+            await AsyncStorage.removeItem('POSSalePreferenceData');
             storedHostname = await AsyncStorage.getItem('hostname');
             await fetchDataFromApi(`${storedHostname}/focus8API/Logout`, '');
             // await AsyncStorage.removeItem('focusSessoin');
