@@ -412,7 +412,9 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   item: {
-    margin: 8,
+    borderWidth: 0.4,
+    borderColor: '#0f6cbd',
+    margin: 4,
     width: Dimensions.get('window').width / 2 - 24,
     height: 160,
     borderRadius: 15,

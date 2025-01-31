@@ -52,6 +52,9 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
   selectedCategory,
   reloadPage,
 }) => {
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
   const [isLoading, setIsLoading] = React.useState(false);
   const [cartItems, setCartItems] = React.useState<any>([]);
   const [categoryItems, setCategoryItems] = React.useState<any>([]);
@@ -69,11 +72,35 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
     [key: string]: boolean;
   }>({});
   // Filter categoryItems based on the search term, checking both ProductName and ProductCode
+  // const filteredCategoryItems = categoryItems.filter(
+  //   (item: {ProductName: string; ProductCode: string}) =>
+  //     item.ProductName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  //     item.ProductCode.toLowerCase().includes(searchTerm.toLowerCase()),
+  // );
+
   const filteredCategoryItems = categoryItems.filter(
-    (item: {ProductName: string; ProductCode: string}) =>
-      item.ProductName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.ProductCode.toLowerCase().includes(searchTerm.toLowerCase()),
+    (item: {ProductName: string; ProductCode: string}) => {
+      // Split the search term into individual words and make them lowercase
+      const searchWords = searchTerm.toLowerCase().split(/\s+/);
+
+      // Check if all search words are found in either ProductName or ProductCode
+      return searchWords.every(
+        word =>
+          item.ProductName.toLowerCase().includes(word) ||
+          item.ProductCode.toLowerCase().includes(word),
+      );
+    },
   );
+
+  const showToast = (message: React.SetStateAction<string>) => {
+    console.log('showToast', message);
+    setToastMessage(message);
+    setToastVisible(true);
+    setTimeout(() => {
+      setToastVisible(false);
+    }, 3000); // Hide the toast after 3 seconds
+  };
+
   // console.log('categoryItems', categoryItems);
   const fetchCategoryItems = React.useCallback(async (category: any) => {
     try {
@@ -103,10 +130,10 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
         LEFT JOIN Cart c on c.ProductId = p.ProductId
         LEFT JOIN Stock b ON b.iProduct = p.ProductId
         WHERE CategoryId = ?
-        --AND b.iExpiryDate >= CURRENT_DATE
+        AND b.iExpiryDate >= CURRENT_DATE
         AND pr.endDate >= CURRENT_DATE
-       -- AND b.iInvTag = ${parsedPOSSalesPreferences?.warehouseId}
-        --AND pr.compBranchId = ${parsedPOSSalesPreferences?.compBranchId}
+       AND b.iInvTag = ${parsedPOSSalesPreferences?.warehouseId}
+        AND pr.compBranchId = ${parsedPOSSalesPreferences?.compBranchId}
         GROUP BY 
     p.ProductId, 
     p.ProductName, 
@@ -117,7 +144,8 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
     p.CategoryName, 
     p.CurrencyId, 
     p.CurrencyCode
-    ORDER BY 
+    ORDER BY
+    c.Quantity, 
     TotalStock DESC;`,
         [category.CategoryId], // Use CategoryId directly
       );
@@ -479,20 +507,34 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
                   onChangeText={quantity => {
                     const parsedQuantity = parseInt(quantity);
 
-                    if (!isNaN(parsedQuantity)) {
+                    if (
+                      !isNaN(parsedQuantity) &&
+                      parsedQuantity <= item.TotalStock &&
+                      parsedQuantity > 0
+                    ) {
                       handleAddProduct(item, parsedQuantity);
                       setInputQuantity(prev => ({
                         ...prev,
                         [item?.ProductId]: parsedQuantity, // Update with valid quantity
                       }));
                     } else {
-                      handleAddProduct(item, quantity);
                       setInputQuantity(prev => ({
                         ...prev,
                         [item?.ProductId]: '', // Update with valid quantity
                       }));
                       // Handle invalid input (optional: show an error message, etc.)
-                      console.log('Invalid quantity entered');
+                      if (isNaN(parsedQuantity)) {
+                        handleAddProduct(item, quantity);
+                        console.log('Invalid quantity entered');
+                      } else {
+                        console.log(
+                          `Quantity exceeds available stock. Max is ${item.TotalStock}`,
+                        );
+                        handleAddProduct(item, 0);
+                        showToast(
+                          `Quantity exceeds available stock. Max is ${item.TotalStock}`,
+                        );
+                      }
                     }
                   }}
                   // onBlur={() => {
@@ -514,7 +556,7 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
                     borderWidth: 1,
                     borderColor: '#0f6cbd',
                     fontSize: 15,
-                    fontWeight:'bold',
+                    fontWeight: 'bold',
                     padding: 8,
                     color: 'black',
                     backgroundColor: '#daedf5',
@@ -553,6 +595,29 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
   return (
     <>
       {/* Add Modal component before the main View */}
+      {toastVisible && (
+        <View style={styles.toastContainer}>
+          <View style={styles.toast}>
+            <View
+              style={{
+                backgroundColor: 'white',
+                width: 33,
+                height: 33,
+                borderRadius: 25,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 10,
+              }}>
+              <Image
+                source={require('../assets/images/focus_rt.png')}
+                style={styles.toastImage}
+                resizeMode="contain"
+              />
+            </View>
+            <Text style={styles.toastText}>{toastMessage}</Text>
+          </View>
+        </View>
+      )}
       <Modal
         transparent={true}
         visible={modalVisible}
@@ -631,7 +696,7 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
             <View
               style={{
                 width: Dimensions.get('window').width,
-                paddingBottom: 100,
+                marginBottom: 100,
               }}>
               <FlatList
                 data={filteredCategoryItems}
@@ -646,7 +711,7 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
                   offset: 120 * index,
                   index,
                 })}
-                contentContainerStyle={{paddingBottom: 50}}
+                contentContainerStyle={{paddingBottom: 300}}
               />
             </View>
           )}
@@ -656,6 +721,42 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
   );
 };
 const styles = StyleSheet.create({
+  toastContainer: {
+    position: 'absolute',
+    top: 30,
+    width: '100%',
+    alignItems: 'center',
+    zIndex: 9999,
+    paddingHorizontal: 16,
+  },
+  toast: {
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  toastImage: {
+    width: 25,
+    height: 25,
+    // marginRight: 10,
+    marginTop: 5,
+    borderRadius: 25,
+  },
+  toastText: {
+    color: 'white',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
   title: {
     fontFamily: 'Poppins-Bold', // Bold for title
     fontSize: 17,

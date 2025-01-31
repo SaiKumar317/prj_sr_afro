@@ -190,17 +190,20 @@ function Cart({
           p.CurrencyCode,
           c.Quantity,
           pr.discountP,
+          pr.discountAmt,
+          pr.vat,
+          pr.excise,
           SUM(b.BatchQty) AS TotalStock
         FROM Products p
         JOIN Prices pr on pr.ProductId = p.ProductId
         JOIN Cart c on c.ProductId = p.ProductId
         LEFT JOIN Stock b ON b.iProduct = p.ProductId
-       -- WHERE
-       -- b.iExpiryDate >= CURRENT_DATE
-        --AND pr.endDate >= CURRENT_DATE
-        --AND b.iInvTag = ${parsedPOSSalesPreferences?.warehouseId}
-        --AND pr.compBranchId = ${parsedPOSSalesPreferences?.compBranchId}
-       -- AND c.Quantity != ''
+       WHERE
+       b.iExpiryDate >= CURRENT_DATE
+        AND pr.endDate >= CURRENT_DATE
+        AND b.iInvTag = ${parsedPOSSalesPreferences?.warehouseId}
+        AND pr.compBranchId = ${parsedPOSSalesPreferences?.compBranchId}
+       AND c.Quantity != ''
         GROUP BY 
     p.ProductId, 
     p.ProductName, 
@@ -428,18 +431,63 @@ function Cart({
   async function placeOrder() {
     try {
       setIsLoading(false);
-      if (selectedCustAcc) {
+      var storedPOSSalePreferenceData: any = await AsyncStorage.getItem(
+        'POSSalePreferenceData',
+      );
+      var parsedPOSSalesPreferences = JSON.parse(storedPOSSalePreferenceData);
+
+      if (customerName && mobileNum && mobileNum.toString()?.length >= 10) {
         if (categoryItems) {
           setShowPlaceOrderModal(false);
           let salesOrderRequest = '';
           storedHostname = await AsyncStorage.getItem('hostname');
-          const salesOrderUrl = `${storedHostname}/focus8api/Transactions/5632/`;
+          const salesOrderUrl = `${storedHostname}/focus8api/Transactions/3342/`;
           const bodyData = [];
           for (let x in categoryItems) {
+            const gross =
+              parseInt(categoryItems[x]?.Quantity) *
+              parseFloat(categoryItems[x]?.Rate);
+            const taxableValue =
+              gross -
+              (gross * parseFloat(categoryItems?.[x]?.discountP)) / 100 -
+              parseFloat(categoryItems?.[x]?.discountAmt);
             bodyData.push({
               Item__Id: categoryItems[x]?.ProductId,
               Quantity: categoryItems[x]?.Quantity,
               Rate: categoryItems[x]?.Rate,
+              Gross: gross,
+              Discount: {
+                Input: categoryItems?.[x]?.discountP,
+                FieldName: 'Discount',
+                FieldId: 1279,
+              },
+              'Discount amount': {
+                Input: categoryItems?.[x]?.discountAmt,
+                FieldName: 'Discount amount',
+                FieldId: 1281,
+                Value: categoryItems?.[x]?.discountAmt,
+              },
+              'Taxable Value': {
+                Input: taxableValue,
+                FieldName: 'Taxable Value',
+                FieldId: 1282,
+                Value: taxableValue,
+              },
+              VAT: {
+                Input: categoryItems?.[x]?.vat,
+                FieldName: 'VAT',
+                FieldId: 1283,
+              },
+              Excise: {
+                Input: categoryItems?.[x]?.excise,
+                FieldName: 'Excise',
+                FieldId: 1284,
+              },
+              Batch: {
+                BatchId: 17,
+                BatchNo: 'QQ',
+                ExpDate: '24/01/2026',
+              },
             });
           }
           salesOrderRequest = JSON.stringify({
@@ -447,7 +495,15 @@ function Cart({
               {
                 Body: bodyData,
                 Header: {
-                  CustomerAC__Id: selectedCustAcc?.value,
+                  SalesAC__Id: parsedPOSSalesPreferences?.SalesAccount,
+                  CustomerAC__Id: parsedPOSSalesPreferences?.CustomerAccount,
+                  'Company-Branch__Id': parsedPOSSalesPreferences?.compBranchId,
+                  Warehouse__Id: parsedPOSSalesPreferences?.warehouseId,
+                  Branch__Id: parsedPOSSalesPreferences?.Branch,
+                  Employee__Id: parsedPOSSalesPreferences?.employeeId,
+                  sNarration: '',
+                  POSCustomerName: customerName,
+                  POSCustomerMobileNumber: mobileNum,
                 },
               },
             ],
@@ -503,15 +559,16 @@ function Cart({
       } else {
         setShowManditory(true);
         // showToast('Select Customer Account');
-        showToast(
-          !customerName || !mobileNum || mobileNum.toString()?.length < 10
-            ? `*Select ${!customerName ? 'POS Customer Name, ' : ''}${
-                !mobileNum || mobileNum.toString()?.length < 10
-                  ? 'POS Customer Mobile Number'
-                  : ''
-              }`
-            : '',
-        );
+
+        if (!customerName || !mobileNum || mobileNum.toString()?.length < 10) {
+          showToast(
+            `*Select ${!customerName ? 'POS Customer Name, ' : ''}${
+              !mobileNum || mobileNum.toString()?.length < 10
+                ? 'POS Customer Mobile Number'
+                : ''
+            }`,
+          );
+        }
       }
     } catch (error) {
       console.error('Error placing order:', error);
@@ -667,20 +724,34 @@ function Cart({
               onChangeText={quantity => {
                 const parsedQuantity = parseInt(quantity);
 
-                if (!isNaN(parsedQuantity)) {
+                if (
+                  !isNaN(parsedQuantity) &&
+                  parsedQuantity <= item.TotalStock &&
+                  parsedQuantity > 0
+                ) {
                   handleAddProduct(item, parsedQuantity);
                   setInputQuantity(prev => ({
                     ...prev,
                     [item?.ProductId]: parsedQuantity, // Update with valid quantity
                   }));
                 } else {
-                  handleAddProduct(item, quantity);
                   setInputQuantity(prev => ({
                     ...prev,
                     [item?.ProductId]: '', // Update with valid quantity
                   }));
                   // Handle invalid input (optional: show an error message, etc.)
-                  console.log('Invalid quantity entered');
+                  if (isNaN(parsedQuantity)) {
+                    handleAddProduct(item, quantity);
+                    console.log('Invalid quantity entered');
+                  } else {
+                    console.log(
+                      `Quantity exceeds available stock. Max is ${item.TotalStock}`,
+                    );
+                    handleAddProduct(item, 0);
+                    showToast(
+                      `Quantity exceeds available stock. Max is ${item.TotalStock}`,
+                    );
+                  }
                 }
               }}
               // onBlur={() => {
@@ -1223,11 +1294,11 @@ const styles = StyleSheet.create({
     flexDirection: 'column', // Image and text in a row
     alignItems: 'center',
   },
-  // inspect: {
-  //   borderWidth: 2, // 2px border width
-  //   borderColor: '#000000', // Black border color
-  //   borderStyle: 'solid', // Solid border style (default is solid)
-  // },
+  inspect: {
+    // borderWidth: 2, // 2px border width
+    // borderColor: '#000000', // Black border color
+    // borderStyle: 'solid', // Solid border style (default is solid)
+  },
   imageContainer: {
     marginRight: 15, // Space between image and text
   },

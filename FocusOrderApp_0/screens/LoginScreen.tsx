@@ -375,7 +375,7 @@ const LoginScreen: React.FC<LoginPageProps> = ({onData}) => {
           {isLoading && renderLoadingView()}
           <View style={[styles.imageContainer, {height: screenHeight * 0.23}]}>
             <Image
-              source={require('../assets/images/focus.png')} // Change the path to your PNG image
+              source={require('../assets/images/focushd.png')} // Change the path to your PNG image
               style={styles.image}
               resizeMode="contain"
             />

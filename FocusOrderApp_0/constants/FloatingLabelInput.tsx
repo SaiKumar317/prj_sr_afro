@@ -57,7 +57,7 @@ const FloatingLabelInput: React.FC<FloatingLabelInputProps> = ({
           // borderRightWidth: 1,
           borderWidth: isFocused ? 1 : 0.4,
           borderColor: isFocused ? '#0f6cbd' : 'black',
-          fontSize: 16,
+          fontSize: 17,
           fontWeight: '600',
           padding: 8,
           // marginTop: 6, // Adjust the top margin as needed

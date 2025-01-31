@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getDBConnection, createStockTable, insertStockData } from '../services/SQLiteService';
+import { getDBConnection, createStockTable, insertStockData, dropTable } from '../services/SQLiteService';
 
 export const syncStock = async () => {
   try {
@@ -57,6 +57,7 @@ order by iExpiryDate`,
 
     if (data.result === 1 && data.data?.[0]?.Table) {
       const db = await getDBConnection();
+      await dropTable(db, 'Stock');
       await createStockTable(db);  // Create the Stock table
       await insertStockData(db, data.data[0].Table);  // Insert the stock data
 
