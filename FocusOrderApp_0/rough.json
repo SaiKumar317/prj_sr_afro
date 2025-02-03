@@ -1,0 +1,18 @@
+[
+  {
+    "sBatchNo": "QQ",
+    "iBatchId": 17,
+    "iExpiryDate": "24/01/2026",
+    "BatchQty": 9521.0000000000,
+    "iProduct": 11932,
+    "iInvTag": 450
+  },
+  {
+    "sBatchNo": "WW",
+    "iBatchId": 18,
+    "iExpiryDate": "24/01/2026",
+    "BatchQty": 4000.0000000000,
+    "iProduct": 11932,
+    "iInvTag": 450
+  }
+]

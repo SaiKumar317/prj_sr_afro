@@ -116,7 +116,7 @@ export const insertPrices = async (db: SQLite.SQLiteDatabase, prices: any[]) => 
   await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
     prices.forEach(price => {
       const { ProductId, ProductName, ProductCode, sellerPB } = price;
-      console.log("sellerPB", sellerPB, price);
+      // console.log("sellerPB", sellerPB, price);
 
       // Split the sellerPB string by commas to create an array
       const sellerPBArray = sellerPB.split(',');
@@ -200,8 +200,11 @@ export const createStockTable = async (db: SQLite.SQLiteDatabase) => {
     iBatchId INTEGER,
     iExpiryDate TEXT,
     BatchQty REAL,
+    ConsumedQty REAL,
+    ConsumedQtyLocal REAL,
     iProduct INTEGER,
-    iInvTag INTEGER
+    iInvTag INTEGER,
+    CONSTRAINT unique_batch UNIQUE (iBatchId)  -- Unique constraint on iBatchId
   );`;
 
   await db.executeSql(query);
@@ -214,14 +217,97 @@ export const insertStockData = async (db: SQLite.SQLiteDatabase, stockData: any[
     iBatchId, 
     iExpiryDate,
     BatchQty,
+    ConsumedQty,
     iProduct,
     iInvTag
-  ) VALUES (?, ?, ?, ?, ?, ?);`;
-
+) 
+VALUES (?, ?, ?, ?, ? , ?, ?)
+ON CONFLICT(iBatchId) DO UPDATE SET
+    sBatchNo = excluded.sBatchNo,
+    iExpiryDate = excluded.iExpiryDate,
+    BatchQty = excluded.BatchQty,
+    ConsumedQty = excluded.ConsumedQty,
+    iProduct = EXCLUDED.iProduct,
+    iInvTag = excluded.iInvTag;`;
   await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
     stockData.forEach(stock => {
       const { sBatchNo, iBatchId, iExpiryDate, BatchQty, iProduct, iInvTag } = stock;
-      tx.executeSql(insertQuery, [sBatchNo, iBatchId, iExpiryDate, BatchQty, iProduct, iInvTag]);
+      tx.executeSql(insertQuery, [sBatchNo, iBatchId, iExpiryDate, BatchQty, 0, iProduct, iInvTag]);
     });
   });
 };
+
+// Get Stock data based on iProduct, iInvTag, and iExpiryDate
+export const getStockData = async (db: SQLite.SQLiteDatabase, iProduct: number, iInvTag: number, iExpiryDate: string) => {
+  const selectQuery = `
+    SELECT 
+      sBatchNo, 
+      iBatchId, 
+      iExpiryDate, 
+      BatchQty, 
+      iProduct, 
+      iInvTag
+    FROM Stock
+    WHERE iProduct = ? AND iInvTag = ? AND iExpiryDate >= CURRENT_DATE
+    ORDER BY iBatchId;
+  `;
+
+  return new Promise<any[]>((resolve, reject) => {
+    db.transaction((tx: { executeSql: (query: string, params: any[], callback: (tx: any, results: any) => void) => void; }) => {
+      tx.executeSql(selectQuery, [iProduct, iInvTag], (tx, results) => {
+        const rows = results.rows.raw(); // Converts result rows into an array of objects
+        resolve(rows);
+      }, (error: any) => {
+        reject(error); // Handle any errors
+      });
+    });
+  });
+};
+
+// // Only update ConsumedQty for existing rows based on iBatchId
+// export const updateConsumedQty = async (db: SQLite.SQLiteDatabase, stockData: any[]) => {
+//   const updateQuery = `
+//     UPDATE Stock
+//     SET 
+//       ConsumedQty = ConsumedQty + ?  -- Only update ConsumedQty (add the new value to the existing value)
+//     WHERE iBatchId = ?;  -- Update only the row with the matching iBatchId
+//   `;
+
+//   await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
+//     stockData.forEach(stock => {
+//       const { ConsumedQty, iBatchId } = stock;
+//       tx.executeSql(updateQuery, [ConsumedQty, iBatchId]);  // Add the new ConsumedQty to the existing one
+//     });
+//   });
+// };
+
+// Update ConsumedQty for each record based on BatchId and Qty dynamically
+export const updateConsumedQty = async (db: { transaction: (arg0: (tx: any) => void) => any; }, stockData: any[]) => {
+  const updateQuery = `
+    UPDATE Stock
+    SET 
+      ConsumedQty =  COALESCE(ConsumedQty, 0) + ?  -- Only update ConsumedQty (add the new value to the existing value)
+    WHERE iBatchId = ?;  -- Update only the row with the matching iBatchId
+  `;
+
+  await db.transaction((tx) => {
+    // Loop through each record in stockData and execute the update query
+    stockData.forEach(stock => {
+      const { Qty, BatchId } = stock;
+      // Execute the SQL statement for each item in stockData
+      // Ensure Qty is treated as an integer or float (depending on your table schema)
+      const qtyValue = parseInt(Qty) || 0;  // In case Qty is null or undefined, default to 0
+      console.log(`Updating BatchId: ${BatchId}, Adding Qty: ${qtyValue}`);
+      tx.executeSql(updateQuery, [qtyValue, BatchId],(tx: any, result: { rowsAffected: any; }) => {
+        // Log the number of rows affected by this update
+        console.log(`Rows affected for BatchId ${BatchId}: ${result.rowsAffected}`);
+      },(tx: any, error: any) => {
+        // Handle any SQL errors
+        console.error("Error updating Stock table:", error);
+      });
+    });
+  });
+};
+
+
+

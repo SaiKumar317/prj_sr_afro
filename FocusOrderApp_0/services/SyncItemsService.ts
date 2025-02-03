@@ -77,6 +77,7 @@ export const syncItems = async () => {
         body: JSON.stringify({
           data: [{
             Query: ` SELECT 
+            mp.pImageName,
 					mp.iCategory as CategoryId,
 					mc.sName as CategoryName,
                     p.iMasterId ProductId, 
@@ -146,7 +147,9 @@ export const syncItems = async () => {
 
         // Fetch and store product images
         for (const product of productData.data[0].Table) {
-          await loadImageForProduct(db, product.ProductId);
+          if (product?.pImageName !='0') {
+            await loadImageForProduct(db, product.ProductId);
+          }
         }
       }
 
@@ -260,7 +263,7 @@ const loadImageForProduct = async (db: SQLite.SQLiteDatabase, productId: number)
     });
 
     const data = await response.json();
-    if (data.result === 1 && data.data?.[0]?.Table?.[0]?.ProductImage) {
+    if (data.result === 1 && data.data?.[0]?.Table?.[0]?.ProductImage && data.data?.[0]?.Table?.[0]?.ProductImage!=='AA==') {
       await db.executeSql(
         'UPDATE Products SET ProductImage = ? WHERE ProductId = ?',
         [data.data[0].Table[0].ProductImage, productId]

@@ -1,11 +1,11 @@
 import { getDBConnection } from './SQLiteService';
 
-export const insertSalesOrder = async (salesOrderData: any) => {
+export const insertSalesOrder = async (salesOrderData: any, salesReceiptBody:any) => {
   const db = await getDBConnection();
   try {
     await db.executeSql(
-      'INSERT INTO SalesOrders (data) VALUES (?)',
-      [JSON.stringify(salesOrderData)], // Assuming you want to store the entire response as a JSON string
+      'INSERT INTO SalesOrders (salessInvoicedata, salesReceiptdata) VALUES (?, ?)',
+      [JSON.stringify(salesOrderData), JSON.stringify(salesReceiptBody)], // Assuming you want to store the entire response as a JSON string
     );
     console.log('Sales order saved to local database.');
   } catch (error) {
@@ -18,7 +18,8 @@ export const createSalesOrdersTable = async () => {
   const query = `
     CREATE TABLE IF NOT EXISTS SalesOrders (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      data TEXT NOT NULL,
+      salessInvoicedata TEXT NOT NULL,
+      salesReceiptdata TEXT NOT NULL,
       createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `;

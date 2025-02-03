@@ -10,7 +10,7 @@ import RNFS from 'react-native-fs'; // Import react-native-fs library
 async function getSyncOrders() {
   async function fetchDataFromApi(url: any, requestData: any) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // 5 seconds timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 5 seconds timeout
 
     const storedFocusSessoin = await AsyncStorage.getItem('focusSessoin');
 
@@ -48,7 +48,7 @@ async function getSyncOrders() {
   console.log('allSalesOrders', allSalesOrders);
 
   let storedHostname = await AsyncStorage.getItem('hostname');
-  const salesOrderUrl = `${storedHostname}/focus8api/Transactions/5632/`;
+  const salesOrderUrl = `${storedHostname}/focus8api/Transactions/3342/`;
 
   let allSuccess = true; // Flag to track overall success
   let partialSuccess = false; // Flag to track if there was partial success
@@ -58,13 +58,41 @@ async function getSyncOrders() {
   for (const order of allSalesOrders) {
     const salesOrdersRes = await fetchDataFromApi(
       salesOrderUrl,
-      JSON.parse(order.data),
+      JSON.parse(order.salessInvoicedata),
     );
 
     if (salesOrdersRes?.result == 1) {
       console.log(
         `Order placed successfully: ${salesOrdersRes?.data?.[0]?.VoucherNo}`,
       );
+      const salesReceiptBody = JSON.parse(order.salessInvoicedata);
+      const salesReceiptUrl = `${storedHostname}/focus8api/Transactions/4101/`;
+      salesReceiptBody.data[0].Header.MobilePOSSaleNumber = `${salesOrdersRes?.data?.[0]?.VoucherNo}`;
+      const salesReceiptRes = await fetchDataFromApi(
+        salesReceiptUrl,
+        salesReceiptBody,
+      );
+      if (salesReceiptRes?.result == 1) {
+        console.log(salesReceiptRes);
+      } else {
+        const storedFocusSessoin = await AsyncStorage.getItem('focusSessoin');
+        const response = await fetch(
+          `${storedHostname}/focus8api/Transactions/3342/${salesOrdersRes?.data?.[0]?.VoucherNo}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              fSessionId: storedFocusSessoin || '',
+            },
+          },
+        );
+
+        const data = await response?.json();
+        console.log(
+          `${storedHostname}/focus8api/Transactions/3342/${salesOrdersRes?.data?.[0]?.VoucherNo}`,
+          data,
+        );
+      }
 
       // Remove the order from the local table after successful placement
       await deletePostedOrderFromLocalTable(order.id); // Assuming order.id is the identifier for the order

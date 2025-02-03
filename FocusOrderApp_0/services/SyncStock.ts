@@ -57,7 +57,7 @@ order by iExpiryDate`,
 
     if (data.result === 1 && data.data?.[0]?.Table) {
       const db = await getDBConnection();
-      await dropTable(db, 'Stock');
+      // await dropTable(db, 'Stock');
       await createStockTable(db);  // Create the Stock table
       await insertStockData(db, data.data[0].Table);  // Insert the stock data
 

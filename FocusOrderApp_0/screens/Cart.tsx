@@ -37,7 +37,11 @@ import {
   removeFromCart,
   deleteAllCartData,
 } from '../services/CartService';
-import {getDBConnection} from '../services/SQLiteService';
+import {
+  getDBConnection,
+  getStockData,
+  updateConsumedQty,
+} from '../services/SQLiteService';
 import SelectModal from '../constants/SelectModal';
 import {
   createSalesOrdersTable,
@@ -102,6 +106,15 @@ function Cart({
   const [totalUpiMp, setTotalUpiMp] = useState<any>(0);
   const [customerName, setCustomerName] = useState<any>(null);
   const [mobileNum, setMobileNum] = useState<any>(null);
+  const dateToInt = (date: {
+    getDate: () => number;
+    getMonth: () => number;
+    getFullYear: () => number;
+  }) => {
+    return (
+      date.getDate() + (date.getMonth() + 1) * 256 + date.getFullYear() * 65536
+    );
+  };
 
   const showToast = (message: React.SetStateAction<string>) => {
     console.log('showToast', message);
@@ -193,7 +206,8 @@ function Cart({
           pr.discountAmt,
           pr.vat,
           pr.excise,
-          SUM(b.BatchQty) AS TotalStock
+          sum(b.ConsumedQty) AS ConsumedQty,
+          (SUM(b.BatchQty) - COALESCE(SUM(b.ConsumedQty), 0) - COALESCE(SUM(b.ConsumedQtyLocal), 0)) AS TotalStock
         FROM Products p
         JOIN Prices pr on pr.ProductId = p.ProductId
         JOIN Cart c on c.ProductId = p.ProductId
@@ -272,7 +286,7 @@ function Cart({
 
   async function fetchDataFromApi(url: any, requestData: any) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 5 seconds timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 5 seconds timeout
 
     onData({isLoading: true});
     const storedFocusSessoin = await AsyncStorage.getItem('focusSessoin');
@@ -405,6 +419,16 @@ function Cart({
       console.error('Error deleting item from cart:', error);
     }
   };
+
+  function getCurrentDate() {
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0'); // Adds leading zero if needed
+    const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are zero-indexed
+    const year = today.getFullYear();
+
+    return `${day}/${month}/${year}`;
+  }
+
   const onPlaceOrder = async () => {
     if (totalVarieties > 0) {
       setShowPlaceOrderModal(true);
@@ -443,58 +467,106 @@ function Cart({
           storedHostname = await AsyncStorage.getItem('hostname');
           const salesOrderUrl = `${storedHostname}/focus8api/Transactions/3342/`;
           const bodyData = [];
+          const db = await getDBConnection();
+          const consumedQty: any[] = [];
           for (let x in categoryItems) {
-            const gross =
-              parseInt(categoryItems[x]?.Quantity) *
-              parseFloat(categoryItems[x]?.Rate);
-            const taxableValue =
-              gross -
-              (gross * parseFloat(categoryItems?.[x]?.discountP)) / 100 -
-              parseFloat(categoryItems?.[x]?.discountAmt);
-            bodyData.push({
-              Item__Id: categoryItems[x]?.ProductId,
-              Quantity: categoryItems[x]?.Quantity,
-              Rate: categoryItems[x]?.Rate,
-              Gross: gross,
-              Discount: {
-                Input: categoryItems?.[x]?.discountP,
-                FieldName: 'Discount',
-                FieldId: 1279,
-              },
-              'Discount amount': {
-                Input: categoryItems?.[x]?.discountAmt,
-                FieldName: 'Discount amount',
-                FieldId: 1281,
-                Value: categoryItems?.[x]?.discountAmt,
-              },
-              'Taxable Value': {
-                Input: taxableValue,
-                FieldName: 'Taxable Value',
-                FieldId: 1282,
-                Value: taxableValue,
-              },
-              VAT: {
-                Input: categoryItems?.[x]?.vat,
-                FieldName: 'VAT',
-                FieldId: 1283,
-              },
-              Excise: {
-                Input: categoryItems?.[x]?.excise,
-                FieldName: 'Excise',
-                FieldId: 1284,
-              },
-              Batch: {
-                BatchId: 17,
-                BatchNo: 'QQ',
-                ExpDate: '24/01/2026',
-              },
-            });
+            const iProduct = categoryItems[x]?.ProductId;
+            const iInvTag = parsedPOSSalesPreferences?.warehouseId;
+            const iExpiryDate = getCurrentDate();
+
+            try {
+              const stock = await getStockData(
+                db,
+                iProduct,
+                iInvTag,
+                iExpiryDate,
+              );
+              console.log('getStockData', stock);
+
+              // Target total qty
+              let targetQty = parseInt(categoryItems[x]?.Quantity);
+              let resultBatch: {
+                BatchId: any;
+                BatchNo: any;
+                ExpDate: any;
+                Qty: any;
+              }[] = [];
+              let totalQty = 0;
+
+              // Iterate over each batch and adjust the quantity to fit the target
+              stock.forEach(batch => {
+                if (totalQty < targetQty) {
+                  let remainingQty = targetQty - totalQty;
+                  let batchQty =
+                    batch.BatchQty <= remainingQty
+                      ? batch.BatchQty
+                      : remainingQty;
+                  resultBatch.push({
+                    BatchId: batch.iBatchId,
+                    BatchNo: batch.sBatchNo,
+                    ExpDate: batch.iExpiryDate,
+                    Qty: batchQty,
+                  });
+                  totalQty += batchQty;
+                }
+              });
+
+              consumedQty.push(...resultBatch);
+
+              for (let eachB in resultBatch) {
+                const gross =
+                  parseInt(resultBatch[eachB]?.Qty) *
+                  parseFloat(categoryItems[x]?.Rate);
+                const taxableValue =
+                  gross -
+                  (gross * parseFloat(categoryItems?.[x]?.discountP)) / 100 -
+                  parseFloat(categoryItems?.[x]?.discountAmt);
+                bodyData.push({
+                  Item__Id: categoryItems[x]?.ProductId,
+                  Quantity: resultBatch[eachB]?.Qty,
+                  Rate: categoryItems[x]?.Rate,
+                  Gross: gross,
+                  Discount: {
+                    Input: categoryItems?.[x]?.discountP,
+                    FieldName: 'Discount',
+                    FieldId: 1279,
+                  },
+                  'Discount amount': {
+                    Input: categoryItems?.[x]?.discountAmt,
+                    FieldName: 'Discount amount',
+                    FieldId: 1281,
+                    Value: categoryItems?.[x]?.discountAmt,
+                  },
+                  'Taxable Value': {
+                    Input: taxableValue,
+                    FieldName: 'Taxable Value',
+                    FieldId: 1282,
+                    Value: taxableValue,
+                  },
+                  VAT: {
+                    Input: categoryItems?.[x]?.vat,
+                    FieldName: 'VAT',
+                    FieldId: 1283,
+                  },
+                  Excise: {
+                    Input: categoryItems?.[x]?.excise,
+                    FieldName: 'Excise',
+                    FieldId: 1284,
+                  },
+                  Batch: resultBatch[eachB],
+                });
+              }
+            } catch (error) {
+              console.error('Error fetching stock data:', error);
+            }
           }
+          console.log('salesOrderRequest', bodyData);
           salesOrderRequest = JSON.stringify({
             data: [
               {
                 Body: bodyData,
                 Header: {
+                  Date: dateToInt(new Date()),
                   SalesAC__Id: parsedPOSSalesPreferences?.SalesAccount,
                   CustomerAC__Id: parsedPOSSalesPreferences?.CustomerAccount,
                   'Company-Branch__Id': parsedPOSSalesPreferences?.compBranchId,
@@ -513,47 +585,128 @@ function Cart({
             salesOrderUrl,
             salesOrderRequest,
           );
+
+          const salesReceiptBody = {
+            data: [
+              {
+                Body: [
+                  {
+                    Account__Id: parsedPOSSalesPreferences?.CashAccount,
+                    Amount: totalCash,
+                    PaymentType: 0,
+                  },
+
+                  {
+                    Account__Id: parsedPOSSalesPreferences?.UPI_MPAccount,
+                    Amount: totalUpiMp,
+                    PaymentType: 1,
+                  },
+                ],
+                Header: {
+                  Date: dateToInt(new Date()),
+                  Account__Id: parsedPOSSalesPreferences?.SalesAccount,
+                  'Company-Branch__Id': parsedPOSSalesPreferences?.compBranchId,
+                  Branch__Id: parsedPOSSalesPreferences?.Branch,
+                  Employee__Id: parsedPOSSalesPreferences?.employeeId,
+                  MobilePOSSaleDate: dateToInt(new Date()),
+                  MobilePOSSaleNumber: '',
+                },
+              },
+            ],
+          };
           if (salesOrdersRes?.result == 1) {
-            setIsLoading(false);
-            setShowPlaceOrderModal(false);
-            Alert.alert(
-              'Success',
-              `Order placed Successfully\nSales Order No.: ${salesOrdersRes?.data?.[0]?.VoucherNo}`,
-              [{text: 'OK', onPress: () => console.log('OK Pressed')}],
+            const salesReceiptUrl = `${storedHostname}/focus8api/Transactions/4101/`;
+            salesReceiptBody.data[0].Header.MobilePOSSaleNumber = `${salesOrdersRes?.data?.[0]?.VoucherNo}`;
+            const salesReceiptRes = await fetchDataFromApi(
+              salesReceiptUrl,
+              salesReceiptBody,
             );
-            // After order is placed, clear the cart items
-            await deleteAllCartData()
-              .then(() => {
-                console.log('All data cleared.');
-              })
-              .catch(error => {
-                console.error('Error clearing data:', error);
-              });
-            setCartItems([]); // Reset cartItems state
-            setCategoryItems([]); // Reset categoryItems state
+            if (salesReceiptRes?.result == 1) {
+              setIsLoading(false);
+              setShowPlaceOrderModal(false);
+              await updateConsumedQty(db, consumedQty)
+                .then(() => {
+                  console.log(
+                    `ConsumedQty updated successfully for ${consumedQty?.length} records.`,
+                  );
+                })
+                .catch(error => {
+                  console.error('Error updating ConsumedQty:', error);
+                });
+              Alert.alert(
+                'Success',
+                `Order placed Successfully\n Mobile POS Sales Invoice.: ${salesOrdersRes?.data?.[0]?.VoucherNo}\n Mobile POS Receipts.: ${salesReceiptRes?.data?.[0]?.VoucherNo}`,
+                [{text: 'OK', onPress: () => console.log('OK Pressed')}],
+              );
+              // After order is placed, clear the cart items
+              await deleteAllCartData()
+                .then(() => {
+                  console.log('All data cleared.');
+                })
+                .catch(error => {
+                  console.error('Error clearing data:', error);
+                });
+              setCartItems([]); // Reset cartItems state
+              setCategoryItems([]); // Reset categoryItems state
+            } else {
+              if (salesReceiptRes?.result == -1) {
+                Alert.alert(
+                  'Failed',
+                  `Posting failed for Mobile POS Receipts: ${salesReceiptRes?.message}`,
+                );
+              }
+
+              const storedFocusSessoin = await AsyncStorage.getItem(
+                'focusSessoin',
+              );
+              const response = await fetch(
+                `${storedHostname}/focus8api/Transactions/3342/${salesOrdersRes?.data?.[0]?.VoucherNo}`,
+                {
+                  method: 'DELETE',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    fSessionId: storedFocusSessoin || '',
+                  },
+                },
+              );
+
+              const data = await response?.json();
+              console.log(
+                `${storedHostname}/focus8api/Transactions/3342/${salesOrdersRes?.data?.[0]?.VoucherNo}`,
+                data,
+              );
+            }
           } else {
             // Save to local database if result is not 1
-            await insertSalesOrder(salesOrderRequest); // Save the response to local DB
-            await deleteAllCartData()
-              .then(() => {
-                console.log('All data cleared.');
-              })
-              .catch(error => {
-                console.error('Error clearing data:', error);
-              });
-            setCartItems([]); // Reset cartItems state
-            setCategoryItems([]); // Reset categoryItems state
-            onData({isLoading: false, isreload: true});
+            if (salesOrdersRes?.result == -1) {
+              Alert.alert(
+                'Failed', // Title of the alert
+                `Order placement failed: ${salesOrdersRes?.message || ''}`,
+                [{text: 'OK', onPress: () => console.log('OK Pressed')}],
+              );
+            } else {
+              await insertSalesOrder(salesOrderRequest, salesReceiptBody); // Save the response to local DB
+              await deleteAllCartData()
+                .then(() => {
+                  console.log('All data cleared.');
+                })
+                .catch(error => {
+                  console.error('Error clearing data:', error);
+                });
+              setCartItems([]); // Reset cartItems state
+              setCategoryItems([]); // Reset categoryItems state
+              onData({isLoading: false, isreload: true});
 
-            setIsLoading(false);
-            setShowManditory(false);
-            Alert.alert(
-              'Failed', // Title of the alert
-              `Order placement failed: ${
-                salesOrdersRes?.message || ''
-              }\n Saved in local`,
-              [{text: 'OK', onPress: () => console.log('OK Pressed')}],
-            );
+              setIsLoading(false);
+              setShowManditory(false);
+              Alert.alert(
+                'Failed', // Title of the alert
+                `Order placement failed: ${
+                  salesOrdersRes?.message || ''
+                }\n Saved in local`,
+                [{text: 'OK', onPress: () => console.log('OK Pressed')}],
+              );
+            }
           }
         }
       } else {
@@ -658,7 +811,8 @@ function Cart({
                 Available Stock:{' '}
                 <Text
                   style={{color: 'black', fontWeight: 'bold', fontSize: 17}}>
-                  {item.TotalStock}
+                  {item.ConsumedQty}
+                  {/* {item.TotalStock} */}
                 </Text>
               </Text>
               {/* Product Rate */}

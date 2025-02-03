@@ -124,15 +124,16 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
           p.CurrencyCode,
           c.Quantity,
           pr.discountP,
-          SUM(b.BatchQty) AS TotalStock
+          sum(b.ConsumedQty) AS ConsumedQty,
+          (SUM(b.BatchQty) - COALESCE(SUM(b.ConsumedQty), 0) - COALESCE(SUM(b.ConsumedQtyLocal), 0)) AS TotalStock
         FROM Products p
         JOIN Prices pr on pr.ProductId = p.ProductId
         LEFT JOIN Cart c on c.ProductId = p.ProductId
         LEFT JOIN Stock b ON b.iProduct = p.ProductId
         WHERE CategoryId = ?
-        AND b.iExpiryDate >= CURRENT_DATE
-        AND pr.endDate >= CURRENT_DATE
-       AND b.iInvTag = ${parsedPOSSalesPreferences?.warehouseId}
+       AND b.iExpiryDate >= CURRENT_DATE
+       AND pr.endDate >= CURRENT_DATE
+        AND b.iInvTag = ${parsedPOSSalesPreferences?.warehouseId}
         AND pr.compBranchId = ${parsedPOSSalesPreferences?.compBranchId}
         GROUP BY 
     p.ProductId, 
@@ -145,7 +146,7 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
     p.CurrencyId, 
     p.CurrencyCode
     ORDER BY
-    c.Quantity, 
+    c.Quantity DESC, 
     TotalStock DESC;`,
         [category.CategoryId], // Use CategoryId directly
       );
@@ -417,7 +418,8 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
                 Available Stock:{' '}
                 <Text
                   style={{color: 'black', fontWeight: 'bold', fontSize: 17}}>
-                  {item.TotalStock}
+                  {/* {item.ConsumedQty} */}
+                  {item.TotalStock || 0}
                 </Text>
               </Text>
 
@@ -497,7 +499,7 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
                     value={item?.Quantity}
                   /> */}
                 <TextInput
-                  // editable={!loadingStates[item.ProductId]}
+                  editable={item.TotalStock > 0 ? true : false}
                   // value={item?.Quantity.toString()}
                   value={inputQuantity?.[item?.ProductId]?.toString()}
                   placeholder="Add Quantity"
