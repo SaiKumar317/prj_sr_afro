@@ -5,6 +5,11 @@ export const syncPrices = async () => {
   try {
     const storedHostname = await AsyncStorage.getItem('hostname');
     const storedFocusSession = await AsyncStorage.getItem('focusSessoin');
+     var storedPOSSalePreferenceData: any = await AsyncStorage.getItem(
+        'POSSalePreferenceData',
+      );
+      var parsedPOSSalesPreferences = JSON.parse(storedPOSSalePreferenceData);
+
 
     if (!storedHostname || !storedFocusSession) {
       throw new Error('Missing hostname or session information');
@@ -27,7 +32,7 @@ export const syncPrices = async () => {
                     ISNULL((SELECT TOP 1 CAST(fVal0 AS VARCHAR) + ',' + CAST(iTagId AS VARCHAR) + ',' + CAST(fVal1 AS VARCHAR) + ','+ CAST(fVal2 AS VARCHAR) + ','+ CAST(fVal3 AS VARCHAR) + ','+ CAST(fVal4 AS VARCHAR) + ',' + CONVERT(VARCHAR, dbo.IntToDate(spb.iEndDate), 103)  
                             FROM mCore_SellingPriceBookDetails spb 
                             JOIN mCore_SellingPriceBookHeader sph ON spb.iPriceBookId = sph.iPriceBookId
-                            WHERE spb.iProductId = p.iMasterId 
+                            WHERE spb.iProductId = p.iMasterId and iTagId = ${parsedPOSSalesPreferences?.compBranchId}
                             AND sph.bActive = 1 
                             AND sph.bMarkDeleted = 0 
                             AND dbo.DateToInt(GETDATE()) BETWEEN spb.iStartDate 

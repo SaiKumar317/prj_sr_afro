@@ -47,6 +47,7 @@ function PreferencesPage({
     );
     if (storedPOSSalePreferenceData) {
       navigation.navigate('TabStack');
+      return;
     }
     console.log(
       'storedUsername',
@@ -104,7 +105,8 @@ where um.iUserId in (select iUserId from mSec_Users where sLoginName='${storedUs
   };
   const fetchDataFromApi = async (url: any, requestData: any) => {
     try {
-      //   onData({isLoading: true});
+      // onData({isLoading: true});
+      setIsLoading(true);
       const storedFocusSessoin = await AsyncStorage.getItem('focusSessoin');
       const response = await fetch(url, {
         method: requestData !== '' ? 'POST' : 'GET',

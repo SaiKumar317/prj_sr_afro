@@ -308,6 +308,77 @@ export const updateConsumedQty = async (db: { transaction: (arg0: (tx: any) => v
     });
   });
 };
+// // Only update ConsumedQtyLocal for existing rows based on iBatchId
+// export const updateConsumedQty = async (db: SQLite.SQLiteDatabase, stockData: any[]) => {
+//   const updateQuery = `
+//     UPDATE Stock
+//     SET 
+//       ConsumedQty = ConsumedQty + ?  -- Only update ConsumedQty (add the new value to the existing value)
+//     WHERE iBatchId = ?;  -- Update only the row with the matching iBatchId
+//   `;
+
+//   await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
+//     stockData.forEach(stock => {
+//       const { ConsumedQty, iBatchId } = stock;
+//       tx.executeSql(updateQuery, [ConsumedQty, iBatchId]);  // Add the new ConsumedQty to the existing one
+//     });
+//   });
+// };
+
+// Update ConsumedQty for each record based on BatchId and Qty dynamically
+export const updateConsumedQtyLocal = async (db: { transaction: (arg0: (tx: any) => void) => any; }, stockData: any[]) => {
+  const updateQuery = `
+    UPDATE Stock
+    SET 
+      ConsumedQtyLocal =  COALESCE(ConsumedQtyLocal, 0) + ?  -- Only update ConsumedQtyLocal (add the new value to the existing value)
+    WHERE iBatchId = ?;  -- Update only the row with the matching iBatchId
+  `;
+
+  await db.transaction((tx) => {
+    // Loop through each record in stockData and execute the update query
+    stockData.forEach(stock => {
+      const { Qty, BatchId } = stock;
+      // Execute the SQL statement for each item in stockData
+      // Ensure Qty is treated as an integer or float (depending on your table schema)
+      const qtyValue = parseInt(Qty) || 0;  // In case Qty is null or undefined, default to 0
+      console.log(`Updating BatchId: ${BatchId}, Adding Qty: ${qtyValue}`);
+      tx.executeSql(updateQuery, [qtyValue, BatchId],(tx: any, result: { rowsAffected: any; }) => {
+        // Log the number of rows affected by this update
+        console.log(`Rows affected for BatchId ${BatchId}: ${result.rowsAffected}`);
+      },(tx: any, error: any) => {
+        // Handle any SQL errors
+        console.error("Error updating Stock table:", error);
+      });
+    });
+  });
+};
+export const clearConsumedQtyLocal = async (db: { transaction: (arg0: (tx: any) => void) => any; }, stockData: any[]) => {
+  const updateQuery = `
+    UPDATE Stock
+    SET
+      ConsumedQty =  COALESCE(ConsumedQty, 0) + ?,
+      ConsumedQtyLocal =  COALESCE(ConsumedQtyLocal, 0) - ?  -- Only update ConsumedQtyLocal (add the new value to the existing value)
+    WHERE iBatchId = ?;  -- Update only the row with the matching iBatchId
+  `;
+
+  await db.transaction((tx) => {
+    // Loop through each record in stockData and execute the update query
+    stockData.forEach(stock => {
+      const { Qty, BatchId } = stock;
+      // Execute the SQL statement for each item in stockData
+      // Ensure Qty is treated as an integer or float (depending on your table schema)
+      const qtyValue = parseInt(Qty) || 0;  // In case Qty is null or undefined, default to 0
+      console.log(`Updating BatchId: ${BatchId}, Adding Qty: ${qtyValue}`);
+      tx.executeSql(updateQuery, [qtyValue, qtyValue, BatchId],(tx: any, result: { rowsAffected: any; }) => {
+        // Log the number of rows affected by this update
+        console.log(`Rows affected for BatchId ${BatchId}: ${result.rowsAffected}`);
+      },(tx: any, error: any) => {
+        // Handle any SQL errors
+        console.error("Error updating Stock table:", error);
+      });
+    });
+  });
+};
 
 
 

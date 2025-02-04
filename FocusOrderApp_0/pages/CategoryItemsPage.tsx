@@ -100,6 +100,14 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
       setToastVisible(false);
     }, 3000); // Hide the toast after 3 seconds
   };
+  function getCurrentDate() {
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0'); // Adds leading zero if needed
+    const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are zero-indexed
+    const year = today.getFullYear();
+
+    return `${day}/${month}/${year}`;
+  }
 
   // console.log('categoryItems', categoryItems);
   const fetchCategoryItems = React.useCallback(async (category: any) => {
@@ -131,10 +139,10 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
         LEFT JOIN Cart c on c.ProductId = p.ProductId
         LEFT JOIN Stock b ON b.iProduct = p.ProductId
         WHERE CategoryId = ?
-       AND b.iExpiryDate >= CURRENT_DATE
-       AND pr.endDate >= CURRENT_DATE
-        AND b.iInvTag = ${parsedPOSSalesPreferences?.warehouseId}
-        AND pr.compBranchId = ${parsedPOSSalesPreferences?.compBranchId}
+       AND b.iExpiryDate >= ${getCurrentDate()}
+       --AND pr.endDate >= ${getCurrentDate()}
+      AND b.iInvTag = ${parsedPOSSalesPreferences?.warehouseId}
+       -- AND pr.compBranchId = ${parsedPOSSalesPreferences?.compBranchId}
         GROUP BY 
     p.ProductId, 
     p.ProductName, 
@@ -499,7 +507,7 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
                     value={item?.Quantity}
                   /> */}
                 <TextInput
-                  editable={item.TotalStock > 0 ? true : false}
+                  editable={item.TotalStock && item.Rate > 0 ? true : false}
                   // value={item?.Quantity.toString()}
                   value={inputQuantity?.[item?.ProductId]?.toString()}
                   placeholder="Add Quantity"
@@ -785,8 +793,9 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontFamily: 'Poppins-SemiBold', // SemiBold for modal title
-    fontSize: 16,
+    fontSize: 18,
     color: '#333',
+    fontWeight: 'bold',
   },
   modalImage: {
     width: '100%',
@@ -855,6 +864,8 @@ const styles = StyleSheet.create({
     // borderColor: '#000000', // Black border color
     // borderStyle: 'solid', // Solid border style (default is solid)
     marginRight: 15, // Space between image and text
+    borderWidth: 0.4,
+    borderRadius: 8,
   },
   image: {
     width: 80, // Adjust the image size
@@ -967,8 +978,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    width: '90%',
-    maxHeight: '80%',
+    width: '100%',
+    maxHeight: '90%',
     backgroundColor: 'white',
     borderRadius: 20,
     overflow: 'hidden',
@@ -999,8 +1010,8 @@ const styles = StyleSheet.create({
   //   marginRight: 40,
   // },
   closeButton: {
-    width: 30,
-    height: 30,
+    width: 40,
+    height: 40,
     borderRadius: 15,
     backgroundColor: '#eee',
     justifyContent: 'center',
@@ -1010,9 +1021,9 @@ const styles = StyleSheet.create({
     top: 12,
   },
   closeButtonText: {
-    color: '#666',
-    fontSize: 18,
-    fontWeight: '600',
+    color: '#333',
+    fontSize: 25,
+    fontWeight: 'bold',
   },
   modalImageContainer: {
     backgroundColor: '#fff',

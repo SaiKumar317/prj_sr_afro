@@ -41,6 +41,7 @@ import {
   getDBConnection,
   getStockData,
   updateConsumedQty,
+  updateConsumedQtyLocal,
 } from '../services/SQLiteService';
 import SelectModal from '../constants/SelectModal';
 import {
@@ -81,6 +82,12 @@ function Cart({
   const [toastMessage, setToastMessage] = useState('');
 
   const [totalQuantity, setTotalQuantity] = useState(0);
+  const [totalCalcGross, setTotalCalcGross] = useState(0);
+  const [totalCalcDiscountPer, setTotalCalcDiscountPer] = useState(0);
+  const [totalCalcDiscountAmt, setTotalCalcDiscountAmt] = useState(0);
+  const [totalCalcVAT, setTotalCalcVAT] = useState(0);
+  const [totalCalcExcise, setTotalCalcExcise] = useState(0);
+
   const [totalAmount, setTotalAmount] = useState(0);
   const [isLoading, setIsLoading] = React.useState(false);
   const [itemImages, setItemImages] = useState<{[key: string]: string}>({});
@@ -115,7 +122,14 @@ function Cart({
       date.getDate() + (date.getMonth() + 1) * 256 + date.getFullYear() * 65536
     );
   };
+  function getCurrentDate() {
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0'); // Adds leading zero if needed
+    const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are zero-indexed
+    const year = today.getFullYear();
 
+    return `${day}/${month}/${year}`;
+  }
   const showToast = (message: React.SetStateAction<string>) => {
     console.log('showToast', message);
     setToastMessage(message);
@@ -127,6 +141,11 @@ function Cart({
   // Function to calculate the total quantity and total amount
   const calculateBillingDetails = () => {
     let totalQty = 0;
+    let totalGross = 0;
+    let totalDiscountPer = 0;
+    let totalDiscountAmt = 0;
+    let totalVAT = 0;
+    let totalExcise = 0;
     let totalAmt = 0;
 
     let totalVarieties = 0;
@@ -154,11 +173,21 @@ function Cart({
         (item: {ProductId: string}) => item.ProductId == productId,
       );
       if (item && quantity > 0) {
+        let calcGross = quantity * item.Rate;
         totalQty += quantity;
+        totalGross += calcGross;
+        totalDiscountPer += calcGross * (item?.discountP / 100);
+        totalDiscountAmt += item?.discountAmt;
+        totalVAT += calcGross * (item?.vat / 100);
+        totalExcise += calcGross * (item?.excise / 100);
         totalAmt += quantity * item.Rate; // Assuming item has a Rate property
       }
     }
-
+    setTotalCalcGross(totalGross);
+    setTotalCalcDiscountPer(totalDiscountPer);
+    setTotalCalcDiscountAmt(totalDiscountAmt);
+    setTotalCalcVAT(totalVAT);
+    setTotalCalcExcise(totalExcise);
     setTotalQuantity(totalQty);
     setTotalAmount(totalAmt);
     setTotalCash(totalAmt);
@@ -213,10 +242,10 @@ function Cart({
         JOIN Cart c on c.ProductId = p.ProductId
         LEFT JOIN Stock b ON b.iProduct = p.ProductId
        WHERE
-       b.iExpiryDate >= CURRENT_DATE
-        AND pr.endDate >= CURRENT_DATE
+       b.iExpiryDate >= ${getCurrentDate()}
+       -- AND pr.endDate >= ${getCurrentDate()}
         AND b.iInvTag = ${parsedPOSSalesPreferences?.warehouseId}
-        AND pr.compBranchId = ${parsedPOSSalesPreferences?.compBranchId}
+        --AND pr.compBranchId = ${parsedPOSSalesPreferences?.compBranchId}
        AND c.Quantity != ''
         GROUP BY 
     p.ProductId, 
@@ -420,15 +449,6 @@ function Cart({
     }
   };
 
-  function getCurrentDate() {
-    const today = new Date();
-    const day = String(today.getDate()).padStart(2, '0'); // Adds leading zero if needed
-    const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are zero-indexed
-    const year = today.getFullYear();
-
-    return `${day}/${month}/${year}`;
-  }
-
   const onPlaceOrder = async () => {
     if (totalVarieties > 0) {
       setShowPlaceOrderModal(true);
@@ -614,6 +634,7 @@ function Cart({
               },
             ],
           };
+          // if (false) {
           if (salesOrdersRes?.result == 1) {
             const salesReceiptUrl = `${storedHostname}/focus8api/Transactions/4101/`;
             salesReceiptBody.data[0].Header.MobilePOSSaleNumber = `${salesOrdersRes?.data?.[0]?.VoucherNo}`;
@@ -678,6 +699,7 @@ function Cart({
             }
           } else {
             // Save to local database if result is not 1
+            // if (false) {
             if (salesOrdersRes?.result == -1) {
               Alert.alert(
                 'Failed', // Title of the alert
@@ -685,13 +707,26 @@ function Cart({
                 [{text: 'OK', onPress: () => console.log('OK Pressed')}],
               );
             } else {
-              await insertSalesOrder(salesOrderRequest, salesReceiptBody); // Save the response to local DB
+              await insertSalesOrder(
+                salesOrderRequest,
+                salesReceiptBody,
+                consumedQty,
+              ); // Save the response to local DB
               await deleteAllCartData()
                 .then(() => {
                   console.log('All data cleared.');
                 })
                 .catch(error => {
                   console.error('Error clearing data:', error);
+                });
+              await updateConsumedQtyLocal(db, consumedQty)
+                .then(() => {
+                  console.log(
+                    `ConsumedQty updated successfully for ${consumedQty?.length} records.`,
+                  );
+                })
+                .catch(error => {
+                  console.error('Error updating ConsumedQty:', error);
                 });
               setCartItems([]); // Reset cartItems state
               setCategoryItems([]); // Reset categoryItems state
@@ -811,8 +846,8 @@ function Cart({
                 Available Stock:{' '}
                 <Text
                   style={{color: 'black', fontWeight: 'bold', fontSize: 17}}>
-                  {item.ConsumedQty}
-                  {/* {item.TotalStock} */}
+                  {/* {item.ConsumedQty} */}
+                  {item.TotalStock}
                 </Text>
               </Text>
               {/* Product Rate */}
@@ -1042,7 +1077,31 @@ function Cart({
                   </Text>
                 </Text>
                 <Text style={styles.billingText}>
-                  Total Amount: {categoryItems?.[0]?.CurrencyCode}{' '}
+                  Total Gross:{' '}
+                  <Text style={{color: 'black', fontWeight: 'bold'}}>
+                    {totalCalcGross}
+                  </Text>
+                </Text>
+                <Text style={styles.billingText}>
+                  Total Discount:{' '}
+                  <Text style={{color: 'black', fontWeight: 'bold'}}>
+                    {totalCalcDiscountPer + totalCalcDiscountAmt}
+                  </Text>
+                </Text>
+                <Text style={styles.billingText}>
+                  Total VAT:{' '}
+                  <Text style={{color: 'black', fontWeight: 'bold'}}>
+                    {totalCalcVAT}
+                  </Text>
+                </Text>
+                <Text style={styles.billingText}>
+                  Total Excise:{' '}
+                  <Text style={{color: 'black', fontWeight: 'bold'}}>
+                    {totalCalcExcise}
+                  </Text>
+                </Text>
+                <Text style={styles.billingText}>
+                  Net Amount: {categoryItems?.[0]?.CurrencyCode}{' '}
                   <Text style={{color: 'black', fontWeight: 'bold'}}>
                     {totalAmount.toFixed(2)}
                   </Text>
@@ -1455,6 +1514,8 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     marginRight: 15, // Space between image and text
+    borderWidth: 0.4,
+    borderRadius: 8,
   },
   image: {
     width: 80, // Adjust the image size

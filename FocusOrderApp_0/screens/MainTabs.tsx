@@ -455,6 +455,17 @@ function MainTabs({
           </View>
         </TouchableOpacity>
       </View>
+      <View style={[styles.focusimageContainer]}>
+        <Text style={{fontSize: 10, color: '#a19aa0'}}>
+          Powered by Focus Softnet Pvt Ltd
+        </Text>
+        <View style={{alignItems: 'center', marginTop: 5}}>
+          <Image
+            source={require('../assets/images/focus_rt.png')} // Change the path to your PNG image
+            style={styles.focusimage}
+          />
+        </View>
+      </View>
 
       {/* Logout button at bottom */}
       <TouchableOpacity
@@ -574,6 +585,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     fontWeight: '500',
+  },
+  focusimageContainer: {
+    marginBottom: 10,
+    // flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  focusimage: {
+    width: 35, // Adjust width as needed
+    height: 35, // Adjust height as needed
+    // marginBottom: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   logoutButton: {
     padding: 16,

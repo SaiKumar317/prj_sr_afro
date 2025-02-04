@@ -6,6 +6,11 @@ import {
 import {Alert, Platform} from 'react-native';
 import {deleteAllCartData} from '../services/CartService';
 import RNFS from 'react-native-fs'; // Import react-native-fs library
+import {
+  clearConsumedQtyLocal,
+  getDBConnection,
+  updateConsumedQtyLocal,
+} from '../services/SQLiteService';
 
 async function getSyncOrders() {
   async function fetchDataFromApi(url: any, requestData: any) {
@@ -55,6 +60,7 @@ async function getSyncOrders() {
   const failedOrders = []; // Array to track failed sales orders along with their response
   const successOrders = [];
   // Iterate through all sales orders and send each one to the API
+  const db = await getDBConnection();
   for (const order of allSalesOrders) {
     const salesOrdersRes = await fetchDataFromApi(
       salesOrderUrl,
@@ -65,15 +71,35 @@ async function getSyncOrders() {
       console.log(
         `Order placed successfully: ${salesOrdersRes?.data?.[0]?.VoucherNo}`,
       );
-      const salesReceiptBody = JSON.parse(order.salessInvoicedata);
+      const salesReceiptBody = JSON.parse(order.salesReceiptdata);
+      const consumedQty = JSON.parse(order.consumedQtydata);
       const salesReceiptUrl = `${storedHostname}/focus8api/Transactions/4101/`;
       salesReceiptBody.data[0].Header.MobilePOSSaleNumber = `${salesOrdersRes?.data?.[0]?.VoucherNo}`;
+      console.log('salesReceiptBody', salesReceiptBody);
       const salesReceiptRes = await fetchDataFromApi(
         salesReceiptUrl,
         salesReceiptBody,
       );
       if (salesReceiptRes?.result == 1) {
         console.log(salesReceiptRes);
+        await clearConsumedQtyLocal(db, consumedQty)
+          .then(() => {
+            console.log(
+              `ConsumedQty updated successfully for ${consumedQty?.length} records.`,
+            );
+          })
+          .catch(error => {
+            console.error('Error updating ConsumedQty:', error);
+          });
+
+        // Remove the order from the local table after successful placement
+        await deletePostedOrderFromLocalTable(order.id); // Assuming order.id is the identifier for the order
+        successOrders.push({
+          salessInvoicedata: JSON.parse(order.salessInvoicedata), // Store the order data that success
+          response: salesOrdersRes, // Store the response for the success order
+          salesReceiptdata: JSON.parse(order.salesReceiptdata), // Store the salesReceipt that success
+          salesReceipResponse: salesReceiptRes, // Store the response for the success salesReceipt
+        });
       } else {
         const storedFocusSessoin = await AsyncStorage.getItem('focusSessoin');
         const response = await fetch(
@@ -92,21 +118,22 @@ async function getSyncOrders() {
           `${storedHostname}/focus8api/Transactions/3342/${salesOrdersRes?.data?.[0]?.VoucherNo}`,
           data,
         );
+        allSuccess = false; // Mark as partial success
+        partialSuccess = true; // Set flag for partial success
+        failedOrders.push({
+          salessInvoicedata: JSON.parse(order.salessInvoicedata), // Store the order data that failed
+          response: data, // Store the response for the failed order
+        });
       }
 
-      // Remove the order from the local table after successful placement
-      await deletePostedOrderFromLocalTable(order.id); // Assuming order.id is the identifier for the order
-
-      successOrders.push({
-        orderData: JSON.parse(order.data), // Store the order data that failed
-        response: salesOrdersRes, // Store the response for the failed order
-      });
+      // // Remove the order from the local table after successful placement
+      // await deletePostedOrderFromLocalTable(order.id); // Assuming order.id is the identifier for the order
     } else {
       console.log(`Failed to place order: ${salesOrdersRes?.message || ''}`);
       allSuccess = false; // Mark as partial success
       partialSuccess = true; // Set flag for partial success
       failedOrders.push({
-        orderData: JSON.parse(order.data), // Store the order data that failed
+        salessInvoicedata: JSON.parse(order.salessInvoicedata), // Store the order data that failed
         response: salesOrdersRes, // Store the response for the failed order
       });
     }
@@ -130,7 +157,7 @@ async function getSyncOrders() {
   };
 
   // Prepare the log content
-  let logContent = `Sales Order Sync Log - ${getISTTime()}\n\n`;
+  let logContent = ` Mobile POS Sales Invoice Sync Log - ${getISTTime()}\n\n`;
 
   // Define the directory for logs
   const logsDirectory = `${RNFS.DownloadDirectoryPath}/Logs`;
@@ -144,55 +171,63 @@ async function getSyncOrders() {
   });
 
   // Save the log to the Logs directory
-  var logFilePath = `${logsDirectory}/sales_order_log_${sanitizeFileName(
+  var logFilePath = `${logsDirectory}/sales_invoice_log_${sanitizeFileName(
     getISTTime(),
   )}.txt`; // Updated path for the log file in Logs
 
   if (allSuccess && failedOrders?.length == 0) {
-    logFilePath = `${logsDirectory}/sales_order_log_${sanitizeFileName(
+    logFilePath = `${logsDirectory}/sales_invoice_log_${sanitizeFileName(
       getISTTime(),
     )}.txt`;
-    logContent += 'All orders have been placed successfully.\n\n';
+    logContent +=
+      'All Mobile POS Sales Invoice have been placed successfully.\n\n';
     successOrders.forEach((successOrder, index) => {
-      const orderDetails = successOrder.orderData; // Extract the Body of the order
+      const orderDetails = successOrder.salessInvoicedata; // Extract the Body of the order
       const responseDetails = JSON.stringify(
         successOrder.response?.data?.[0]?.VoucherNo,
       ); // Extract the response details
+      const salesReceipResponseDetails = JSON.stringify(
+        successOrder.salesReceipResponse?.data?.[0]?.VoucherNo,
+      ); // Extract the salesReceipt ResponseDetails
       logContent += `Order ${
         index + 1
-      } Success:\nDocument No: ${responseDetails}\n\n`;
+      } Success:\nMobile POS Sales Invoice: ${responseDetails}\nMobile POS Receipts: ${salesReceipResponseDetails}\n\n`;
       //   logContent += '========================\n';
     });
   } else if (partialSuccess && failedOrders?.length == allSalesOrders?.length) {
     logFilePath = `${logsDirectory}/failed_sales_order_log_${sanitizeFileName(
       getISTTime(),
     )}.txt`;
-    logContent += 'All orders failed to be placed.\n\n';
+    logContent += 'All Mobile POS Sales Invoice failed to be placed.\n\n';
     failedOrders.forEach((failedOrder, index) => {
-      const orderDetails = failedOrder.orderData; // Extract the Body of the order
+      const orderDetails = failedOrder.salessInvoicedata; // Extract the Body of the order
       const responseDetails = JSON.stringify(failedOrder.response); // Extract the response details
       logContent += `Order ${
         index + 1
-      } Failed:\nOrder Details: ${orderDetails}\nResponse: ${responseDetails}\n\n`;
+      } Failed:\Mobile POS Sales Invoice Details: ${orderDetails}\nResponse: ${responseDetails}\n\n`;
       logContent += '========================\n';
     });
   } else {
-    logFilePath = `${logsDirectory}/partial_success_sales_order_log_${getISTTime()}.txt`;
-    logContent += 'Some orders were placed successfully, others failed.\n\n';
-    logContent += 'Orders have been placed successfully.\n\n';
+    logFilePath = `${logsDirectory}/partial_success_sales_invoice_log_${getISTTime()}.txt`;
+    logContent +=
+      'Some Mobile POS Sales Invoice were placed successfully, others failed.\n\n';
+    logContent += 'Mobile POS Sales Invoice have been placed successfully.\n\n';
     successOrders.forEach((successOrder, index) => {
-      const orderDetails = successOrder.orderData; // Extract the Body of the order
+      const orderDetails = successOrder.salessInvoicedata; // Extract the Body of the order
       const responseDetails = JSON.stringify(
         successOrder.response?.data?.[0]?.VoucherNo,
       ); // Extract the response details
+      const salesReceipResponseDetails = JSON.stringify(
+        successOrder.salesReceipResponse?.data?.[0]?.VoucherNo,
+      ); // Extract the salesReceipt ResponseDetails
       logContent += `Order ${
         index + 1
-      } Success:\nDocument No: ${responseDetails}\n\n`;
+      } Success:\nDocument No: ${responseDetails}\nMobile POS Receipts: ${salesReceipResponseDetails}\n\n`;
     });
     logContent += '========================\n';
-    logContent += 'Orders failed to be placed.\n\n';
+    logContent += 'Mobile POS Sales Invoice failed to be placed.\n\n';
     failedOrders.forEach((failedOrder, index) => {
-      const orderDetails = JSON.stringify(failedOrder.orderData.Body); // Extract the Body of the order
+      const orderDetails = JSON.stringify(failedOrder.salessInvoicedata.Body); // Extract the Body of the order
       const responseDetails = JSON.stringify(failedOrder.response); // Extract the response details
       logContent += `Order ${
         index + 1
@@ -234,7 +269,7 @@ async function getSyncOrders() {
     } else {
       //   const failedOrderDetails = failedOrders
       //     .map((failedOrder, index) => {
-      //       const orderDetails = JSON.stringify(failedOrder.orderData.Body); // Extract the Body of the order
+      //       const orderDetails = JSON.stringify(failedOrder.salessInvoicedata.Body); // Extract the Body of the order
       //       const responseDetails = JSON.stringify(failedOrder.response); // Extract the response details
       //       return `Order ${
       //         index + 1
@@ -256,7 +291,7 @@ async function getSyncOrders() {
   //   // Prepare the log content for failed orders
   //   let failedOrdersLogContent = `Failed Orders Log - ${new Date().toISOString()}\n\n`;
   //   failedOrders.forEach((failedOrder, index) => {
-  //     const orderDetails = JSON.stringify(failedOrder.orderData.Body); // Extract the Body of the order
+  //     const orderDetails = JSON.stringify(failedOrder.salessInvoicedata.Body); // Extract the Body of the order
   //     const responseDetails = JSON.stringify(failedOrder.response); // Extract the response details
   //     failedOrdersLogContent += `Order ${
   //       index + 1
