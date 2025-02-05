@@ -23,6 +23,8 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
+  useWindowDimensions,
+  TouchableWithoutFeedback,
 } from 'react-native';
 
 const focus_rt = require('../assets/images/focus_rt.png');
@@ -108,7 +110,7 @@ function Cart({
 
   const [showPlaceOrderModal, setShowPlaceOrderModal] = useState(false);
   const [customerAccounts, setCustomerAccounts] = useState<any[]>([]); // State to hold customer accounts
-
+  const [showBillDetails, setShowBillDetails] = useState(false);
   const [totalCash, setTotalCash] = useState<any>(0);
   const [totalUpiMp, setTotalUpiMp] = useState<any>(0);
   const [customerName, setCustomerName] = useState<any>(null);
@@ -180,9 +182,17 @@ function Cart({
         totalDiscountAmt += item?.discountAmt;
         totalVAT += calcGross * (item?.vat / 100);
         totalExcise += calcGross * (item?.excise / 100);
-        totalAmt += quantity * item.Rate; // Assuming item has a Rate property
+        // totalAmt += quantity * item.Rate; // Assuming item has a Rate property
       }
     }
+    totalAmt = parseFloat(
+      (
+        totalGross -
+        (totalDiscountPer + totalDiscountAmt) +
+        totalVAT +
+        totalCalcExcise
+      ).toFixed(2),
+    );
     setTotalCalcGross(totalGross);
     setTotalCalcDiscountPer(totalDiscountPer);
     setTotalCalcDiscountAmt(totalDiscountAmt);
@@ -190,7 +200,7 @@ function Cart({
     setTotalCalcExcise(totalExcise);
     setTotalQuantity(totalQty);
     setTotalAmount(totalAmt);
-    setTotalCash(totalAmt);
+    setTotalCash(totalAmt.toFixed(2));
     setTotalUpiMp(0);
     setTotalVarieties(totalVarieties);
   };
@@ -208,7 +218,7 @@ function Cart({
       .catch(error => {
         console.log('Error retrieving data', error);
       });
-  }, [categoryItems, cartItems, inputQuantity]);
+  }, [categoryItems, cartItems, inputQuantity, calculateBillingDetails]);
   // console.log('categoryItems', categoryItems);
   const fetchCategoryItems = React.useCallback(async () => {
     try {
@@ -808,75 +818,76 @@ function Cart({
   };
 
   const renderItem = ({item}) => (
-    <View style={[styles.item, {borderWidth: 0.4, borderColor: '#0f6cbd'}]}>
-      <View style={styles.row}>
-        <View
-          style={[styles.inspect, {flexDirection: 'row', paddingBottom: 8}]}>
-          <View style={[styles.inspect, styles.imageContainer]}>
-            {loadingImages[item.ProductId] &&
-            itemImages[item.ProductId] !== 'AA==' ? (
-              <View style={[styles.image, styles.loadingImage]}>
-                <ActivityIndicator size="small" color="#51c7d6" />
-              </View>
-            ) : (
-              <Image
-                source={
-                  itemImages?.[item.ProductId] &&
-                  itemImages[item.ProductId] !== 'AA=='
-                    ? {
-                        uri: `data:image/png;base64,${
-                          itemImages[item.ProductId]
-                        }`,
-                      }
-                    : focus_rt_black
-                }
-                style={styles.image}
-              />
-            )}
-          </View>
-          {/* Text and button on the right */}
-          <View style={styles.textContainer}>
-            {/* Product name */}
-            <View>
-              <Text style={styles.title}>{item.ProductName}</Text>
-              <Text style={styles.subText}>{item.ProductCode}</Text>
+    <TouchableWithoutFeedback onPress={() => setShowBillDetails(false)}>
+      <View style={[styles.item, {borderWidth: 0.4, borderColor: '#0f6cbd'}]}>
+        <View style={styles.row}>
+          <View
+            style={[styles.inspect, {flexDirection: 'row', paddingBottom: 8}]}>
+            <View style={[styles.inspect, styles.imageContainer]}>
+              {loadingImages[item.ProductId] &&
+              itemImages[item.ProductId] !== 'AA==' ? (
+                <View style={[styles.image, styles.loadingImage]}>
+                  <ActivityIndicator size="small" color="#51c7d6" />
+                </View>
+              ) : (
+                <Image
+                  source={
+                    itemImages?.[item.ProductId] &&
+                    itemImages[item.ProductId] !== 'AA=='
+                      ? {
+                          uri: `data:image/png;base64,${
+                            itemImages[item.ProductId]
+                          }`,
+                        }
+                      : focus_rt_black
+                  }
+                  style={styles.image}
+                />
+              )}
+            </View>
+            {/* Text and button on the right */}
+            <View style={styles.textContainer}>
+              {/* Product name */}
+              <View>
+                <Text style={styles.title}>{item.ProductName}</Text>
+                <Text style={styles.subText}>{item.ProductCode}</Text>
 
-              {/* Product quantity */}
-              <Text style={styles.subText}>
-                Available Stock:{' '}
-                <Text
-                  style={{color: 'black', fontWeight: 'bold', fontSize: 17}}>
-                  {/* {item.ConsumedQty} */}
-                  {item.TotalStock}
+                {/* Product quantity */}
+                <Text style={styles.subText}>
+                  Available Stock:{' '}
+                  <Text
+                    style={{color: 'black', fontWeight: 'bold', fontSize: 17}}>
+                    {/* {item.ConsumedQty} */}
+                    {item.TotalStock}
+                  </Text>
                 </Text>
-              </Text>
-              {/* Product Rate */}
-              <Text style={styles.subText}>
-                Rate: {item.CurrencyCode}{' '}
-                <Text
-                  style={{color: 'black', fontWeight: 'bold', fontSize: 17}}>
-                  {item.Rate}
+                {/* Product Rate */}
+                <Text style={styles.subText}>
+                  Rate: {item.CurrencyCode}{' '}
+                  <Text
+                    style={{color: 'black', fontWeight: 'bold', fontSize: 17}}>
+                    {item.Rate}
+                  </Text>
                 </Text>
-              </Text>
+              </View>
             </View>
           </View>
-        </View>
-        <View style={styles.divider} />
-        <View style={styles.quantityContainer}>
-          {/* Quantity */}
-          <Text style={styles.subText}>Quantity: </Text>
-
-          {/* Add button */}
-
+          <View style={styles.divider} />
           <View style={styles.quantityContainer}>
-            {/* {item?.Quantity == 1 ? (
+            {/* Quantity */}
+            <Text style={styles.subText}>Quantity: </Text>
+
+            {/* Add button */}
+
+            <View style={styles.quantityContainer}>
+              {/* {item?.Quantity == 1 ? (
               <TouchableOpacity
                 style={styles.quantityButton}
                 onPress={() => handleDeleteItem(item?.ProductId)}>
                 <FontAwesomeIcon icon={faTrashAlt} size={20} color="#51c7d6" />
               </TouchableOpacity>
             ) : ( */}
-            {/* <TouchableOpacity
+              {/* <TouchableOpacity
               style={styles.quantityButton}
               disabled={loadingStates[`dec_${item.ProductId}`]}
               onPress={() =>
@@ -888,9 +899,9 @@ function Cart({
                 <Text style={styles.quantityText}>-</Text>
               )}
             </TouchableOpacity> */}
-            {/* // )} */}
+              {/* // )} */}
 
-            {/* <Text style={styles.quantityText}>{item?.Quantity}</Text>
+              {/* <Text style={styles.quantityText}>{item?.Quantity}</Text>
             <TouchableOpacity
               style={styles.quantityButton}
               disabled={loadingStates[`inc_${item.ProductId}`]}
@@ -903,84 +914,87 @@ function Cart({
                 <Text style={styles.quantityText}>+</Text>
               )}
             </TouchableOpacity> */}
-            {/* Delete Button */}
-            <TextInput
-              // editable={!loadingStates[item.ProductId]}
-              // value={item?.Quantity.toString()}
-              value={inputQuantity?.[item?.ProductId]?.toString()}
-              placeholder="Add Quantity"
-              placeholderTextColor="#8e918e"
-              onChangeText={quantity => {
-                const parsedQuantity = parseInt(quantity);
+              {/* Delete Button */}
+              <TextInput
+                // editable={!loadingStates[item.ProductId]}
+                // value={item?.Quantity.toString()}
+                value={inputQuantity?.[item?.ProductId]?.toString()}
+                placeholder="Add Quantity"
+                placeholderTextColor="#8e918e"
+                onChangeText={quantity => {
+                  const parsedQuantity = parseInt(quantity);
+                  setShowBillDetails(false);
 
-                if (
-                  !isNaN(parsedQuantity) &&
-                  parsedQuantity <= item.TotalStock &&
-                  parsedQuantity > 0
-                ) {
-                  handleAddProduct(item, parsedQuantity);
-                  setInputQuantity(prev => ({
-                    ...prev,
-                    [item?.ProductId]: parsedQuantity, // Update with valid quantity
-                  }));
-                } else {
-                  setInputQuantity(prev => ({
-                    ...prev,
-                    [item?.ProductId]: '', // Update with valid quantity
-                  }));
-                  // Handle invalid input (optional: show an error message, etc.)
-                  if (isNaN(parsedQuantity)) {
-                    handleAddProduct(item, quantity);
-                    console.log('Invalid quantity entered');
+                  if (
+                    !isNaN(parsedQuantity) &&
+                    parsedQuantity <= item.TotalStock &&
+                    parsedQuantity > 0
+                  ) {
+                    handleAddProduct(item, parsedQuantity);
+                    setInputQuantity(prev => ({
+                      ...prev,
+                      [item?.ProductId]: parsedQuantity, // Update with valid quantity
+                    }));
                   } else {
-                    console.log(
-                      `Quantity exceeds available stock. Max is ${item.TotalStock}`,
-                    );
-                    handleAddProduct(item, 0);
-                    showToast(
-                      `Quantity exceeds available stock. Max is ${item.TotalStock}`,
-                    );
+                    setInputQuantity(prev => ({
+                      ...prev,
+                      [item?.ProductId]: '', // Update with valid quantity
+                    }));
+                    // Handle invalid input (optional: show an error message, etc.)
+                    if (isNaN(parsedQuantity)) {
+                      handleAddProduct(item, quantity);
+                      console.log('Invalid quantity entered');
+                    } else {
+                      console.log(
+                        `Quantity exceeds available stock. Max is ${item.TotalStock}`,
+                      );
+                      handleAddProduct(item, 0);
+                      showToast(
+                        `Quantity exceeds available stock. Max is ${item.TotalStock}`,
+                      );
+                    }
                   }
-                }
-              }}
-              // onBlur={() => {
-              //   const parsedQuantity = parseInt(
-              //     inputQuantity[item.ProductId],
-              //   );
+                }}
+                // onBlur={() => {
+                //   const parsedQuantity = parseInt(
+                //     inputQuantity[item.ProductId],
+                //   );
 
-              //   if (!isNaN(parsedQuantity)) {
-              //     handleAddProduct(item, inputQuantity[item.ProductId]);
-              //   }
-              // }} // Save to cart on blur
-              // onChangeText={quantity => {
-              //   const parsedQuantity = parseInt(quantity) || 0; // Parse the input quantity
-              //   handleAddProduct(item, parsedQuantity); // Update cart in real-time
-              // }}
-              keyboardType="phone-pad"
-              style={{
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: '#0f6cbd',
-                fontSize: 15,
-                fontWeight: 'bold',
-                padding: 8,
-                color: 'black',
-                backgroundColor: '#daedf5',
-                shadowOpacity: 0.25,
-                shadowRadius: 3.84,
-                elevation: 5,
-                height: 40,
-              }}
-            />
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => handleDeleteItem(item?.ProductId)}>
-              <FontAwesomeIcon icon={faTrashAlt} size={20} color="#0f6cbd" />
-            </TouchableOpacity>
+                //   if (!isNaN(parsedQuantity)) {
+                //     handleAddProduct(item, inputQuantity[item.ProductId]);
+                //   }
+                // }} // Save to cart on blur
+                // onChangeText={quantity => {
+                //   const parsedQuantity = parseInt(quantity) || 0; // Parse the input quantity
+                //   handleAddProduct(item, parsedQuantity); // Update cart in real-time
+                // }}
+                onFocus={() => setShowBillDetails(false)}
+                keyboardType="phone-pad"
+                style={{
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: '#0f6cbd',
+                  fontSize: 15,
+                  fontWeight: 'bold',
+                  padding: 8,
+                  color: 'black',
+                  backgroundColor: '#daedf5',
+                  shadowOpacity: 0.25,
+                  shadowRadius: 3.84,
+                  elevation: 5,
+                  height: 40,
+                }}
+              />
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => handleDeleteItem(item?.ProductId)}>
+                <FontAwesomeIcon icon={faTrashAlt} size={20} color="#0f6cbd" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
-    </View>
+    </TouchableWithoutFeedback>
   );
 
   // Function to fetch customer accounts
@@ -1016,26 +1030,49 @@ function Cart({
 
   // Function to handle cash input change
   const handleCashChange = (text: string) => {
-    const numericValue = text.replace(/[^0-9]/g, ''); // Allow only numbers
-    const cashValue = parseInt(numericValue || '0', 10);
+    // Allow only numbers and a single decimal point
+    const numericValue = text.replace(/[^0-9.]/g, ''); // Allow only numbers and decimal point
+
+    // Ensure there is only one decimal point
+    const splitText = numericValue.split('.');
+    if (splitText.length > 2) {
+      // If there are multiple decimal points, take only the first part
+      return;
+    }
+
+    let cashValue = parseFloat(numericValue || '0');
 
     if (cashValue <= totalAmount) {
       setTotalCash(numericValue.replace(/^0+/, '') || '0');
       // Calculate UPI/MP based on total amount
-      const newUpiMp = totalAmount - parseInt(numericValue || '0', 10);
-      setTotalUpiMp(newUpiMp >= 0 ? newUpiMp.toString() : '0'); // Ensure UPI/MP is not negative
+      cashValue = Math.round(cashValue * 100) / 100;
+      const newUpiMp = totalAmount - cashValue;
+      const roundedUpiMp = Math.round(newUpiMp * 100) / 100;
+      setTotalUpiMp(roundedUpiMp >= 0 ? roundedUpiMp.toString() : '0'); // Ensure UPI/MP is not negative
     }
   };
 
   // Function to handle UPI/MP input change
   const handleUpiMpChange = (text: string) => {
-    const numericValue = text.replace(/[^0-9]/g, ''); // Allow only numbers
-    const upiMpValue = parseInt(numericValue || '0', 10);
+    // Allow only numbers and a single decimal point
+    const numericValue = text.replace(/[^0-9.]/g, ''); // Allow only numbers and decimal point
+
+    // Ensure there is only one decimal point
+    const splitText = numericValue.split('.');
+    if (splitText.length > 2) {
+      // If there are multiple decimal points, take only the first part
+      return;
+    }
+
+    let upiMpValue = parseFloat(numericValue || '0');
+
     if (upiMpValue <= totalAmount) {
       setTotalUpiMp(numericValue.replace(/^0+/, '') || '0');
       // Calculate cash based on total amount
-      const newCash = totalAmount - parseInt(numericValue || '0', 10);
-      setTotalCash(newCash >= 0 ? newCash.toString() : '0'); // Ensure cash is not negative
+      upiMpValue = Math.round(upiMpValue * 100) / 100;
+      const newCash = totalAmount - upiMpValue;
+      const roundedCash = Math.round(newCash * 100) / 100;
+      setTotalCash(roundedCash >= 0 ? roundedCash.toString() : '0'); // Ensure cash is not negative
     }
   };
 
@@ -1061,52 +1098,99 @@ function Cart({
             </View>
 
             {/* Billing Details Section */}
-            <View style={styles.billingDetailsContainer}>
-              <Text style={styles.billingDetailsHeader}>Billing Details</Text>
-              <View style={styles.billingDetailsContent}>
-                <Text style={styles.billingText}>
-                  Total Items:{' '}
-                  <Text style={{color: 'black', fontWeight: 'bold'}}>
-                    {totalVarieties}
-                  </Text>
-                </Text>
-                <Text style={styles.billingText}>
-                  Total Quantity:{' '}
-                  <Text style={{color: 'black', fontWeight: 'bold'}}>
-                    {totalQuantity}
-                  </Text>
-                </Text>
-                <Text style={styles.billingText}>
-                  Total Gross:{' '}
-                  <Text style={{color: 'black', fontWeight: 'bold'}}>
-                    {totalCalcGross}
-                  </Text>
-                </Text>
-                <Text style={styles.billingText}>
-                  Total Discount:{' '}
-                  <Text style={{color: 'black', fontWeight: 'bold'}}>
-                    {totalCalcDiscountPer + totalCalcDiscountAmt}
-                  </Text>
-                </Text>
-                <Text style={styles.billingText}>
-                  Total VAT:{' '}
-                  <Text style={{color: 'black', fontWeight: 'bold'}}>
-                    {totalCalcVAT}
-                  </Text>
-                </Text>
-                <Text style={styles.billingText}>
-                  Total Excise:{' '}
-                  <Text style={{color: 'black', fontWeight: 'bold'}}>
-                    {totalCalcExcise}
-                  </Text>
-                </Text>
-                <Text style={styles.billingText}>
-                  Net Amount: {categoryItems?.[0]?.CurrencyCode}{' '}
-                  <Text style={{color: 'black', fontWeight: 'bold'}}>
-                    {totalAmount.toFixed(2)}
-                  </Text>
-                </Text>
-              </View>
+            {/* <View style={styles.billingDetailsContainer}> */}
+
+            <View>
+              <TouchableOpacity
+                style={[
+                  styles.section,
+                  styles.activeSectionBorder,
+                  // !showBillDetails && styles.activeSectionBorder,
+                ]}
+                onPress={() => setShowBillDetails(!showBillDetails)}>
+                {showBillDetails ? (
+                  // <View style={styles.content}>
+                  //   <HTML
+                  //     source={{html: availabilityContent}}
+                  //     contentWidth={width - 64}
+                  //     tagsStyles={customHTMLStyles}
+                  //   />
+                  // </View>
+                  <>
+                    {/* <Text style={styles.billingDetailsHeader}>
+                      Billing Details
+                    </Text> */}
+                    <Text style={styles.sectionTitle}>Billing Details</Text>
+                    <View style={styles.billContent}>
+                      <View style={styles.billRow}>
+                        <Text style={styles.label}>Total Items:</Text>
+                        <Text style={styles.value}>
+                          {totalVarieties.toFixed(2)}
+                        </Text>
+                      </View>
+                      <View style={[styles.billRow]}>
+                        <Text style={styles.label}>Total Quantity:</Text>
+                        <Text style={styles.value}>
+                          {totalQuantity.toFixed(2)}
+                        </Text>
+                      </View>
+                      <View style={[styles.billRow, styles.line]}>
+                        <Text style={styles.label}>Total Gross:</Text>
+                        <Text style={styles.value}>
+                          {`+  ${totalCalcGross.toFixed(2)}`}
+                        </Text>
+                      </View>
+                      <View style={styles.billRow}>
+                        <Text style={styles.label}>Total Discount:</Text>
+                        <Text style={styles.value}>
+                          {`-  ${(
+                            totalCalcDiscountPer + totalCalcDiscountAmt
+                          ).toFixed(2)}`}
+                        </Text>
+                      </View>
+                      <View style={styles.billRow}>
+                        <Text style={styles.label}>Total VAT:</Text>
+                        <Text style={styles.value}>
+                          {`+  ${totalCalcVAT.toFixed(2)}`}
+                        </Text>
+                      </View>
+                      <View style={styles.billRow}>
+                        <Text style={styles.label}>Total Excise:</Text>
+                        <Text style={styles.value}>
+                          {`+  ${totalCalcExcise.toFixed(2)}`}
+                        </Text>
+                      </View>
+                      <View style={[styles.billRow, styles.line]}>
+                        <Text style={styles.label}>
+                          Net Amount: {categoryItems?.[0]?.CurrencyCode}
+                        </Text>
+                        <Text style={styles.value}>
+                          {totalAmount.toFixed(2)}
+                        </Text>
+                      </View>
+                    </View>
+                  </>
+                ) : (
+                  <View>
+                    <Text style={styles.sectionTitle}>Billing Details</Text>
+                    <View
+                      style={[
+                        styles.billRow,
+                        {
+                          borderTopWidth: 1,
+                          borderTopColor: '#ddd',
+                          backgroundColor: '#fafafa',
+                          padding: 15,
+                        },
+                      ]}>
+                      <Text style={styles.label}>
+                        Net Amount: {categoryItems?.[0]?.CurrencyCode}
+                      </Text>
+                      <Text style={styles.value}>{totalAmount.toFixed(2)}</Text>
+                    </View>
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
           </View>
           <TouchableOpacity style={styles.buttonPO} onPress={onPlaceOrder}>
@@ -1166,19 +1250,20 @@ function Cart({
           <TouchableOpacity
             activeOpacity={1}
             onPress={e => e.stopPropagation()}
-            style={styles.modalContent}>
+            style={[styles.modalContent]}>
             <Text style={styles.modalTitle}>Confirm</Text>
             {/* <Text style={styles.modalMessage}>
               Are you sure you want to place the order?
             </Text> */}
-            <ScrollView style={{width: '100%'}}>
+            <ScrollView
+              style={[styles.inspect, {width: '100%', marginBottom: 50}]}>
               <View
                 style={[
                   // styles.inspect,
                   {
                     flex: 1,
                     flexDirection: 'row',
-                    justifyContent: 'space-between',
+                    justifyContent: 'space-around',
                     gap: 20,
                     padding: 10,
                   },
@@ -1232,26 +1317,9 @@ function Cart({
                   autoCapitalize="none"
                 />
               </View>
-              {/* <SelectModal
-                label="Customer Account"
-                onData={(data: any) => handleSelectedCustAcc(data)}
-                value={selectedCustAcc?.label || null}
-                items={customerAccounts}
-                // items={
-                //   (fCompanyList && fCompanyList?.length > 0 && fCompanyList) ||
-                //   productsArray
-                // }
-              /> */}
-              {/* <MultiSelectModal
-                label="Customer Account"
-                value={pendingVochNo}
-                items={customerAccounts}
-                onData={(data: any) => handleSelectedPendingVochNo(data)}
-                clearMultiSelect={undefined}
-              /> */}
 
               {showManditory && (
-                <Text style={{color: 'red'}}>
+                <Text style={{color: 'red', padding: 20}}>
                   {!customerName ||
                   !mobileNum ||
                   mobileNum.toString()?.length < 10
@@ -1263,8 +1331,103 @@ function Cart({
                     : ''}
                 </Text>
               )}
+
+              <View style={[{alignSelf: 'center'}]}>
+                <TouchableOpacity
+                  style={[
+                    styles.section,
+                    styles.activeSectionBorder,
+                    // !showBillDetails && styles.activeSectionBorder,
+                  ]}
+                  onPress={() => setShowBillDetails(!showBillDetails)}>
+                  {showBillDetails ? (
+                    // <View style={styles.content}>
+                    //   <HTML
+                    //     source={{html: availabilityContent}}
+                    //     contentWidth={width - 64}
+                    //     tagsStyles={customHTMLStyles}
+                    //   />
+                    // </View>
+                    <>
+                      {/* <Text style={styles.billingDetailsHeader}>
+                      Billing Details
+                    </Text> */}
+                      <Text style={styles.sectionTitle}>Billing Details</Text>
+                      <View style={styles.billContent}>
+                        <View style={styles.billRow}>
+                          <Text style={styles.label}>Total Items:</Text>
+                          <Text style={styles.value}>
+                            {totalVarieties.toFixed(2)}
+                          </Text>
+                        </View>
+                        <View style={[styles.billRow]}>
+                          <Text style={styles.label}>Total Quantity:</Text>
+                          <Text style={styles.value}>
+                            {totalQuantity.toFixed(2)}
+                          </Text>
+                        </View>
+                        <View style={[styles.billRow, styles.line]}>
+                          <Text style={styles.label}>Total Gross:</Text>
+                          <Text style={styles.value}>
+                            {`+  ${totalCalcGross.toFixed(2)}`}
+                          </Text>
+                        </View>
+                        <View style={styles.billRow}>
+                          <Text style={styles.label}>Total Discount:</Text>
+                          <Text style={styles.value}>
+                            {`-  ${(
+                              totalCalcDiscountPer + totalCalcDiscountAmt
+                            ).toFixed(2)}`}
+                          </Text>
+                        </View>
+                        <View style={styles.billRow}>
+                          <Text style={styles.label}>Total VAT:</Text>
+                          <Text style={styles.value}>
+                            {`+  ${totalCalcVAT.toFixed(2)}`}
+                          </Text>
+                        </View>
+                        <View style={styles.billRow}>
+                          <Text style={styles.label}>Total Excise:</Text>
+                          <Text style={styles.value}>
+                            {`+  ${totalCalcExcise.toFixed(2)}`}
+                          </Text>
+                        </View>
+                        <View style={[styles.billRow, styles.line]}>
+                          <Text style={styles.label}>
+                            Net Amount: {categoryItems?.[0]?.CurrencyCode}
+                          </Text>
+                          <Text style={styles.value}>
+                            {totalAmount.toFixed(2)}
+                          </Text>
+                        </View>
+                      </View>
+                    </>
+                  ) : (
+                    <View>
+                      <Text style={styles.sectionTitle}>Billing Details</Text>
+                      <View
+                        style={[
+                          styles.billRow,
+                          {
+                            borderTopWidth: 1,
+                            borderTopColor: '#ddd',
+                            backgroundColor: '#fafafa',
+                            padding: 15,
+                          },
+                        ]}>
+                        <Text style={styles.label}>
+                          Net Amount: {categoryItems?.[0]?.CurrencyCode}
+                        </Text>
+                        <Text style={styles.value}>
+                          {totalAmount.toFixed(2)}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
             </ScrollView>
-            <View style={[styles.billingDetailsContainer, {marginBottom: 60}]}>
+            {/* <View style={[styles.billingDetailsContainer, {marginBottom: 60}]}>
               <Text style={styles.billingDetailsHeader}>Billing Details</Text>
               <View style={styles.billingDetailsContent}>
                 <Text style={styles.billingText}>
@@ -1286,7 +1449,7 @@ function Cart({
                   </Text>
                 </Text>
               </View>
-            </View>
+            </View> */}
             <View style={styles.buttonContainer}>
               <TouchableOpacity
                 style={[styles.button, styles.noButton]}
@@ -1400,6 +1563,36 @@ const styles = StyleSheet.create({
     height: '100%',
     fontFamily: 'Arial', // Neutral font for modals
   },
+  section: {
+    width: Dimensions.get('window').width * 0.75,
+    backgroundColor: '#fff',
+    marginBottom: 20,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  activeSectionBorder: {
+    borderColor: '#0f6cbd',
+    borderWidth: 1,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    padding: 13,
+    color: '#333',
+  },
+  content: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    backgroundColor: '#fafafa',
+  },
   // New Style for delete button
   billingDetailsContainer: {
     width: '100%',
@@ -1425,7 +1618,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
     gap: 8,
   },
+  billTotalText: {
+    // alignSelf: 'flex-end',
+  },
   billingText: {
+    borderWidth: 1,
     fontFamily: 'Open Sans-Regular',
     fontSize: 16,
     // color: '#666',
@@ -1502,6 +1699,33 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     // width: '100%', // Ensures the item stretches across the container width
     // backgroundColor: 'linear-gradient(135deg, #ff6a00, #fbbc05)'
+  },
+  billContent: {
+    // margin: 20,
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    backgroundColor: '#fafafa',
+  },
+  line: {
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+    backgroundColor: '#fafafa',
+    paddingTop: 5,
+  },
+  billRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 5,
+  },
+  label: {
+    color: 'gray',
+    fontSize: 16,
+  },
+  value: {
+    color: 'black',
+    fontWeight: 'bold',
+    textAlign: 'right',
   },
   row: {
     flexDirection: 'column', // Image and text in a row

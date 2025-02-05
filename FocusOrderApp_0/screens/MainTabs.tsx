@@ -45,6 +45,7 @@ import getSyncOrders from '../pages/getSyncOrders';
 import CategoryItems from './CategoryItems';
 import PreferencesPage from '../pages/PreferencesPage';
 import {syncStock} from '../services/SyncStock';
+import {useNavigationState} from '@react-navigation/native';
 
 declare function alert(message?: any): void;
 const Stack = createNativeStackNavigator();
@@ -501,7 +502,7 @@ function MainTabs({
               headerTitleStyle: {fontWeight: 'bold'},
             }}>
             <Stack.Screen
-              name="PreviousPage"
+              name="PreferencesPage"
               children={props => (
                 <PreferencesPage
                   SessionId={undefined}

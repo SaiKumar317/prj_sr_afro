@@ -139,7 +139,7 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
         LEFT JOIN Cart c on c.ProductId = p.ProductId
         LEFT JOIN Stock b ON b.iProduct = p.ProductId
         WHERE CategoryId = ?
-       AND b.iExpiryDate >= ${getCurrentDate()}
+       --AND b.iExpiryDate >= ${getCurrentDate()}
        --AND pr.endDate >= ${getCurrentDate()}
       AND b.iInvTag = ${parsedPOSSalesPreferences?.warehouseId}
        -- AND pr.compBranchId = ${parsedPOSSalesPreferences?.compBranchId}
@@ -511,7 +511,9 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
                   // value={item?.Quantity.toString()}
                   value={inputQuantity?.[item?.ProductId]?.toString()}
                   placeholder="Add Quantity"
-                  placeholderTextColor="#8e918e"
+                  placeholderTextColor={
+                    item.TotalStock && item.Rate > 0 ? '#8e918e' : '#ccc'
+                  }
                   // onFocus={handleFocus(item)}
                   // onBlur={handleBlur(item)}
                   onChangeText={quantity => {
@@ -564,12 +566,14 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
                   style={{
                     borderRadius: 8,
                     borderWidth: 1,
-                    borderColor: '#0f6cbd',
+                    borderColor:
+                      item.TotalStock && item.Rate > 0 ? '#0f6cbd' : '#ccc',
                     fontSize: 15,
                     fontWeight: 'bold',
                     padding: 8,
                     color: 'black',
-                    backgroundColor: '#daedf5',
+                    backgroundColor:
+                      item.TotalStock && item.Rate > 0 ? '#daedf5' : '#f0f0f0',
                     shadowOpacity: 0.25,
                     shadowRadius: 3.84,
                     elevation: 5,

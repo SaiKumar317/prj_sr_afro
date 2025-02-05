@@ -199,6 +199,7 @@ export const createStockTable = async (db: SQLite.SQLiteDatabase) => {
     sBatchNo TEXT,
     iBatchId INTEGER,
     iExpiryDate TEXT,
+    iExpiryDateId INTEGER,
     BatchQty REAL,
     ConsumedQty REAL,
     ConsumedQtyLocal REAL,
@@ -216,23 +217,25 @@ export const insertStockData = async (db: SQLite.SQLiteDatabase, stockData: any[
     sBatchNo, 
     iBatchId, 
     iExpiryDate,
+    iExpiryDateId,
     BatchQty,
     ConsumedQty,
     iProduct,
     iInvTag
 ) 
-VALUES (?, ?, ?, ?, ? , ?, ?)
+VALUES (?, ?, ?, ?, ?, ? , ?, ?)
 ON CONFLICT(iBatchId) DO UPDATE SET
     sBatchNo = excluded.sBatchNo,
     iExpiryDate = excluded.iExpiryDate,
+    iExpiryDateId = excluded.iExpiryDateId,
     BatchQty = excluded.BatchQty,
     ConsumedQty = excluded.ConsumedQty,
     iProduct = EXCLUDED.iProduct,
     iInvTag = excluded.iInvTag;`;
   await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
     stockData.forEach(stock => {
-      const { sBatchNo, iBatchId, iExpiryDate, BatchQty, iProduct, iInvTag } = stock;
-      tx.executeSql(insertQuery, [sBatchNo, iBatchId, iExpiryDate, BatchQty, 0, iProduct, iInvTag]);
+      const { sBatchNo, iBatchId, iExpiryDate,iExpiryDateId, BatchQty, iProduct, iInvTag } = stock;
+      tx.executeSql(insertQuery, [sBatchNo, iBatchId, iExpiryDate, iExpiryDateId, BatchQty, 0, iProduct, iInvTag]);
     });
   });
 };
@@ -243,7 +246,8 @@ export const getStockData = async (db: SQLite.SQLiteDatabase, iProduct: number, 
     SELECT 
       sBatchNo, 
       iBatchId, 
-      iExpiryDate, 
+      iExpiryDate,
+      iExpiryDateId,
       BatchQty, 
       iProduct, 
       iInvTag
