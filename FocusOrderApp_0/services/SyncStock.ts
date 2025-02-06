@@ -38,7 +38,7 @@ h.iDate <= dbo.DateToInt(getdate())
 and h.bUpdateStocks = 1 
 and h.bSuspended = 0 and h.iAuth = 1 and d.bSuspendUpdateStocks = 0 
 group by i.iProduct, b.sBatchNo, b.iBatchId , b.iExpiryDate,d.iInvTag
-having sum(i.fQuantityInBase) <> 0 --and  b.iExpiryDate>=dbo.DateToInt(GETDATE())
+having sum(i.fQuantityInBase) <> 0 and  b.iExpiryDate>=dbo.DateToInt(GETDATE())
 )a
 group by sBatchNo, iBatchId ,iExpiryDate,iExpiryDateId, iProduct,iInvTag
 HAVING SUM(a.Batch_Qty) > 0

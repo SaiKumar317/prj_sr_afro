@@ -166,6 +166,7 @@ function MainTabs({
   navigation: any;
 }) {
   console.log(SessionId);
+  const mainNavigation: any = useNavigation();
 
   const [reloadKey, setReloadKey] = useState(false);
   const [dataFromFeatures, setDataFromFeatures] = useState(null);
@@ -326,7 +327,12 @@ function MainTabs({
           </View>
         </TouchableOpacity>
 
-        {/* <TouchableOpacity style={styles.drawerItem}>
+        {/* <TouchableOpacity
+          style={styles.drawerItem}
+          onPress={() => {
+            drawerRef.current?.closeDrawer();
+            mainNavigation.navigate('CategoryItems'); // Navigate to the desired screen
+          }}>
           <View style={styles.menuItem}>
             <FontAwesomeIcon icon={faMoneyBillWave} size={20} color="#0f6cbd" />
             <Text style={styles.menuItemText}>Collections</Text>
@@ -485,58 +491,58 @@ function MainTabs({
 
   // Modify the return statement to wrap everything in the drawer
   return (
-    <DrawerLayoutAndroid
-      ref={drawerRef}
-      drawerWidth={300}
-      drawerPosition="left"
-      renderNavigationView={navigationView}
-      drawerLockMode={isLoading ? 'locked-closed' : 'unlocked'}>
-      <PaperProvider>
-        {isLoading && renderLoadingView()}
-        <NavigationContainer>
-          <Stack.Navigator
-            screenOptions={{
-              headerShown: false,
-              headerStyle: {backgroundColor: '#4f81ab'},
-              headerTintColor: 'white',
-              headerTitleStyle: {fontWeight: 'bold'},
-            }}>
-            <Stack.Screen
-              name="PreferencesPage"
-              children={props => (
-                <PreferencesPage
-                  SessionId={undefined}
-                  handleBackPage={handleBackPage}
-                  {...props} // Pass any additional props if needed
-                />
-              )}
-            />
-            <Stack.Screen name="TabStack">
-              {props => (
-                <TabStack
-                  {...props}
-                  onDataFromFeatures={handleDataFromFeatures}
-                  onDataFromCart={handleDataFromCart}
-                  backPageClicked={backPageClicked}
-                  drawerRef={drawerRef}
-                  reloadCategory={reloadCategory}
-                />
-              )}
-            </Stack.Screen>
-            <Stack.Screen
-              name="CategoryItems"
-              children={props => (
-                <CategoryItems
-                  SessionId={SessionId}
-                  handleBackPage={handleBackPage}
-                  {...props} // Pass any additional props if needed
-                />
-              )}
-            />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </PaperProvider>
-    </DrawerLayoutAndroid>
+    <PaperProvider>
+      {isLoading && renderLoadingView()}
+      {/* <NavigationContainer> */}
+      <DrawerLayoutAndroid
+        ref={drawerRef}
+        drawerWidth={300}
+        drawerPosition="left"
+        renderNavigationView={navigationView}
+        drawerLockMode={isLoading ? 'locked-closed' : 'unlocked'}>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            headerStyle: {backgroundColor: '#4f81ab'},
+            headerTintColor: 'white',
+            headerTitleStyle: {fontWeight: 'bold'},
+          }}>
+          <Stack.Screen
+            name="PreferencesPage"
+            children={props => (
+              <PreferencesPage
+                SessionId={undefined}
+                handleBackPage={handleBackPage}
+                {...props} // Pass any additional props if needed
+              />
+            )}
+          />
+          <Stack.Screen name="TabStack">
+            {props => (
+              <TabStack
+                {...props}
+                onDataFromFeatures={handleDataFromFeatures}
+                onDataFromCart={handleDataFromCart}
+                backPageClicked={backPageClicked}
+                drawerRef={drawerRef}
+                reloadCategory={reloadCategory}
+              />
+            )}
+          </Stack.Screen>
+          <Stack.Screen
+            name="CategoryItems"
+            children={props => (
+              <CategoryItems
+                SessionId={SessionId}
+                handleBackPage={handleBackPage}
+                {...props} // Pass any additional props if needed
+              />
+            )}
+          />
+        </Stack.Navigator>
+      </DrawerLayoutAndroid>
+      {/* </NavigationContainer> */}
+    </PaperProvider>
   );
 }
 

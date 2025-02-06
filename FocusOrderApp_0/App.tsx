@@ -6,6 +6,7 @@ import {Alert, Text, View} from 'react-native';
 import renderLoadingView from './constants/LoadingView';
 import MainTabs from './screens/MainTabs';
 import {BackHandler} from 'react-native';
+import {NavigationContainer} from '@react-navigation/native';
 
 declare function alert(message?: any): void;
 
@@ -225,13 +226,15 @@ function App() {
       ) : (
         <>
           {isSessionValid && (
-            <MainTabs
-              onData={onDataFromMainTabs}
-              SessionId={SessionId}
-              handleLogout={handleLogout}
-              // backPageClicked={backPage}
-              backPageClicked={dataFromMainTabs}
-            />
+            <NavigationContainer>
+              <MainTabs
+                onData={onDataFromMainTabs}
+                SessionId={SessionId}
+                handleLogout={handleLogout}
+                // backPageClicked={backPage}
+                backPageClicked={dataFromMainTabs}
+              />
+            </NavigationContainer>
           )}
           {toastVisible && (
             <View

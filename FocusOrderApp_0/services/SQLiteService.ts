@@ -198,7 +198,7 @@ export const createStockTable = async (db: SQLite.SQLiteDatabase) => {
   const query = `CREATE TABLE IF NOT EXISTS Stock (
     sBatchNo TEXT,
     iBatchId INTEGER,
-    iExpiryDate TEXT,
+    iExpiryDate DATE,
     iExpiryDateId INTEGER,
     BatchQty REAL,
     ConsumedQty REAL,
@@ -234,8 +234,9 @@ ON CONFLICT(iBatchId) DO UPDATE SET
     iInvTag = excluded.iInvTag;`;
   await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
     stockData.forEach(stock => {
-      const { sBatchNo, iBatchId, iExpiryDate,iExpiryDateId, BatchQty, iProduct, iInvTag } = stock;
-      tx.executeSql(insertQuery, [sBatchNo, iBatchId, iExpiryDate, iExpiryDateId, BatchQty, 0, iProduct, iInvTag]);
+      const { sBatchNo, iBatchId, iExpiryDate, iExpiryDateId, BatchQty, iProduct, iInvTag } = stock;
+      let ieDate = new Date(iExpiryDate.split('/').reverse().join('-')).toISOString();
+      tx.executeSql(insertQuery, [sBatchNo, iBatchId, ieDate, iExpiryDateId, BatchQty, 0, iProduct, iInvTag]);
     });
   });
 };

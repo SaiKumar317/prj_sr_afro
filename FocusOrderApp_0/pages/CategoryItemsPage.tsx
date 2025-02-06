@@ -124,22 +124,40 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
           p.ProductId,
           p.ProductName,
           p.ProductCode,
-          pr.Rate,
+           CASE 
+        WHEN pr.endDate >= CURRENT_DATE AND pr.compBranchId = ${
+          parsedPOSSalesPreferences?.compBranchId
+        } 
+        THEN pr.Rate 
+        ELSE 0 
+    END AS Rate,
+    pr.endDate,
           p.ProductImage,
           p.CategoryId,
           p.CategoryName,
           p.CurrencyId,
           p.CurrencyCode,
-          c.Quantity,
+          b.iExpiryDate,
+          CASE 
+        WHEN pr.endDate >= CURRENT_DATE AND pr.compBranchId = ${
+          parsedPOSSalesPreferences?.compBranchId
+        }
+        THEN c.Quantity 
+        ELSE 0 
+    END AS Quantity,
           pr.discountP,
           sum(b.ConsumedQty) AS ConsumedQty,
-          (SUM(b.BatchQty) - COALESCE(SUM(b.ConsumedQty), 0) - COALESCE(SUM(b.ConsumedQtyLocal), 0)) AS TotalStock
-        FROM Products p
+          --(SUM(b.BatchQty) - COALESCE(SUM(b.ConsumedQty), 0) - COALESCE(SUM(b.ConsumedQtyLocal), 0)) AS TotalStock
+        -- Calculate TotalStock considering only records where b.iExpiryDate >= CURRENT_DATE
+    (SUM(CASE WHEN b.iExpiryDate >= CURRENT_DATE THEN b.BatchQty ELSE 0 END) 
+     - COALESCE(SUM(CASE WHEN b.iExpiryDate >= CURRENT_DATE THEN b.ConsumedQty ELSE 0 END), 0)
+     - COALESCE(SUM(CASE WHEN b.iExpiryDate >= CURRENT_DATE THEN b.ConsumedQtyLocal ELSE 0 END), 0)) AS TotalStock
+          FROM Products p
         JOIN Prices pr on pr.ProductId = p.ProductId
         LEFT JOIN Cart c on c.ProductId = p.ProductId
         LEFT JOIN Stock b ON b.iProduct = p.ProductId
         WHERE CategoryId = ?
-       --AND b.iExpiryDate >= ${getCurrentDate()}
+       AND b.iExpiryDate >= CURRENT_DATE
        --AND pr.endDate >= ${getCurrentDate()}
       AND b.iInvTag = ${parsedPOSSalesPreferences?.warehouseId}
        -- AND pr.compBranchId = ${parsedPOSSalesPreferences?.compBranchId}
@@ -147,7 +165,7 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
     p.ProductId, 
     p.ProductName, 
     p.ProductCode, 
-    pr.Rate, 
+    --pr.Rate, 
     p.ProductImage, 
     p.CategoryId, 
     p.CategoryName, 
@@ -419,6 +437,7 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
             {/* Product name */}
             <View>
               <Text style={styles.title}>{item.ProductName}</Text>
+              {/* <Text style={styles.subText}>{item.iExpiryDate}</Text> */}
               <Text style={styles.subText}>{item.ProductCode}</Text>
 
               {/* Product quantity */}

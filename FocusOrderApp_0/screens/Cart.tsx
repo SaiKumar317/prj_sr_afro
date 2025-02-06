@@ -190,7 +190,7 @@ function Cart({
         totalGross -
         (totalDiscountPer + totalDiscountAmt) +
         totalVAT +
-        totalCalcExcise
+        totalExcise
       ).toFixed(2),
     );
     setTotalCalcGross(totalGross);
@@ -208,17 +208,17 @@ function Cart({
   // Update the billing details whenever categoryItems or cartItems change
   useEffect(() => {
     calculateBillingDetails();
-    AsyncStorage.getItem('POSSalePreferenceData')
-      .then(data => {
-        if (data !== null) {
-          const parsedData = JSON.parse(data);
-          console.log('POSSalePreferenceData', parsedData);
-        }
-      })
-      .catch(error => {
-        console.log('Error retrieving data', error);
-      });
-  }, [categoryItems, cartItems, inputQuantity, calculateBillingDetails]);
+    // AsyncStorage.getItem('POSSalePreferenceData')
+    //   .then(data => {
+    //     if (data !== null) {
+    //       const parsedData = JSON.parse(data);
+    //       console.log('POSSalePreferenceData', parsedData);
+    //     }
+    //   })
+    //   .catch(error => {
+    //     console.log('Error retrieving data', error);
+    //   });
+  }, [categoryItems, cartItems, inputQuantity]);
   // console.log('categoryItems', categoryItems);
   const fetchCategoryItems = React.useCallback(async () => {
     try {
@@ -234,25 +234,41 @@ function Cart({
           p.ProductId,
           p.ProductName,
           p.ProductCode,
-          pr.Rate,
+          CASE 
+        WHEN pr.endDate >= CURRENT_DATE AND pr.compBranchId = ${
+          parsedPOSSalesPreferences?.compBranchId
+        } 
+        THEN pr.Rate 
+        ELSE 0 
+    END AS Rate,
           p.ProductImage,
           p.CategoryId,
           p.CategoryName,
           p.CurrencyId,
           p.CurrencyCode,
-          c.Quantity,
+          CASE 
+        WHEN pr.endDate >= CURRENT_DATE AND pr.compBranchId = ${
+          parsedPOSSalesPreferences?.compBranchId
+        }
+        THEN c.Quantity 
+        ELSE 0 
+    END AS Quantity,
           pr.discountP,
           pr.discountAmt,
           pr.vat,
           pr.excise,
           sum(b.ConsumedQty) AS ConsumedQty,
-          (SUM(b.BatchQty) - COALESCE(SUM(b.ConsumedQty), 0) - COALESCE(SUM(b.ConsumedQtyLocal), 0)) AS TotalStock
-        FROM Products p
+         -- (SUM(b.BatchQty) - COALESCE(SUM(b.ConsumedQty), 0) - COALESCE(SUM(b.ConsumedQtyLocal), 0)) AS TotalStock
+        -- Calculate TotalStock considering only records where b.iExpiryDate >= CURRENT_DATE
+    (SUM(CASE WHEN b.iExpiryDate >= CURRENT_DATE THEN b.BatchQty ELSE 0 END) 
+     - COALESCE(SUM(CASE WHEN b.iExpiryDate >= CURRENT_DATE THEN b.ConsumedQty ELSE 0 END), 0)
+     - COALESCE(SUM(CASE WHEN b.iExpiryDate >= CURRENT_DATE THEN b.ConsumedQtyLocal ELSE 0 END), 0)) AS TotalStock
+         FROM Products p
         JOIN Prices pr on pr.ProductId = p.ProductId
         JOIN Cart c on c.ProductId = p.ProductId
         LEFT JOIN Stock b ON b.iProduct = p.ProductId
        WHERE
-       b.iExpiryDate >= ${getCurrentDate()}
+       b.iExpiryDate >= CURRENT_DATE
        -- AND pr.endDate >= ${getCurrentDate()}
         AND b.iInvTag = ${parsedPOSSalesPreferences?.warehouseId}
         --AND pr.compBranchId = ${parsedPOSSalesPreferences?.compBranchId}
@@ -278,11 +294,12 @@ function Cart({
         console.log('products Total', results.rows.length);
         for (let i = 0; i < results.rows.length; i++) {
           const item = results.rows.item(i);
-          products.push(item);
-
-          // If product has an image, add it to images object
-          if (item.ProductImage) {
-            images[item.ProductId] = item.ProductImage; // Use ProductId directly
+          if (item.Quantity !== 0) {
+            products.push(item);
+            // If product has an image, add it to images object
+            if (item.ProductImage) {
+              images[item.ProductId] = item.ProductImage; // Use ProductId directly
+            }
           }
         }
 
@@ -462,6 +479,7 @@ function Cart({
   const onPlaceOrder = async () => {
     if (totalVarieties > 0) {
       setShowPlaceOrderModal(true);
+      setShowBillDetails(true);
     } else {
       showToast('Please enter quantity');
     }
@@ -1319,7 +1337,7 @@ function Cart({
               </View>
 
               {showManditory && (
-                <Text style={{color: 'red', padding: 20}}>
+                <Text style={{color: 'red', paddingBottom: 20}}>
                   {!customerName ||
                   !mobileNum ||
                   mobileNum.toString()?.length < 10
