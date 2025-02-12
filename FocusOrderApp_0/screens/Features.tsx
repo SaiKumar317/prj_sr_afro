@@ -46,9 +46,13 @@ const Features: React.FC<FeaturesProps> = ({
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  const [category, setCategory] = useState([]);
-  const [categoryImages, setCategoryImages] = useState({});
-  const [loadingImages, setLoadingImages] = useState({});
+  const [category, setCategory] = useState<any[]>([]);
+  const [categoryImages, setCategoryImages] = useState<{[key: string]: string}>(
+    {},
+  );
+  const [loadingImages, setLoadingImages] = useState<{[key: string]: boolean}>(
+    {},
+  );
 
   const handleCategory = async (CategoryId: any, CategoryName: any) => {
     console.log('handleCategory pressed'); // Add this log statement
@@ -222,7 +226,7 @@ const Features: React.FC<FeaturesProps> = ({
         setCategory(categories);
 
         // Set images directly from database
-        const imageMap = {};
+        const imageMap: {[key: string]: string} = {};
         categories.forEach(cat => {
           if (cat.CategoryId && cat.CategoryImage) {
             imageMap[cat.CategoryId] = cat.CategoryImage;

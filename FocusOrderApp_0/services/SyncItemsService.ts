@@ -223,10 +223,10 @@ const loadImageForCategory = async (db: SQLite.SQLiteDatabase, categoryId: numbe
       },
       body: JSON.stringify({
         data: [{
-          Query: `SELECT Image as CategoryImage
-                 FROM mCore_CCategory muc
-                 JOIN muPos_Category mup ON mup.iMasterId = muc.iMasterId
-                 WHERE mup.iMasterId = ${categoryId}`,
+          Query: `SELECT CAST(N'' AS XML).value('xs:base64Binary(xs:hexBinary(sql:column("Image")))', 'NVARCHAR(MAX)') as CategoryImage
+                 FROM muPos_Category muc
+                 --JOIN muPos_Category mup ON mup.iMasterId = muc.iMasterId
+                 WHERE muc.iMasterId = ${categoryId}`,
         }],
       }),
     });

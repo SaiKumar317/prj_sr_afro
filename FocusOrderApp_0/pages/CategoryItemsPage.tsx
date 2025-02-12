@@ -34,6 +34,7 @@ import {
 } from '../services/CartService';
 import {parse} from '@fortawesome/fontawesome-svg-core';
 import {useState} from 'react';
+import BarcodeScan from '../constants/BarcodeScanner';
 
 type CategoryItemsPageProps = {
   onData: (data: any) => void;
@@ -54,6 +55,7 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
 }) => {
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [reloadBarCodeScan, setReloadBarCodeScan] = React.useState(false);
 
   const [isLoading, setIsLoading] = React.useState(false);
   const [cartItems, setCartItems] = React.useState<any>([]);
@@ -66,7 +68,7 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
     [key: string]: any;
   }>({}); // Local state for input quantity
   const [isFocused, setIsFocused] = useState({});
-  const [searchTerm, setSearchTerm] = React.useState(''); // State for search input
+  const [searchTerm, setSearchTerm] = React.useState<any>({}); // State for search input
   const [currencyCode, setCurrencyCode] = React.useState('');
   const [loadingStates, setLoadingStates] = React.useState<{
     [key: string]: boolean;
@@ -78,20 +80,95 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
   //     item.ProductCode.toLowerCase().includes(searchTerm.toLowerCase()),
   // );
 
-  const filteredCategoryItems = categoryItems.filter(
-    (item: {ProductName: string; ProductCode: string}) => {
-      // Split the search term into individual words and make them lowercase
-      const searchWords = searchTerm.toLowerCase().split(/\s+/);
+  const [filteredCategoryItems, setFilteredCategoryItems] = React.useState([]);
 
-      // Check if all search words are found in either ProductName or ProductCode
-      return searchWords.every(
-        word =>
-          item.ProductName.toLowerCase().includes(word) ||
-          item.ProductCode.toLowerCase().includes(word),
-      );
+  const handleQuantityChange = async (
+    productId: string,
+    newQuantity: number,
+  ) => {
+    setLoadingStates(prev => ({...prev, [productId]: true}));
+    try {
+      console.log('handleQuantityChange', newQuantity, newQuantity > 0);
+      if (newQuantity > 0) {
+        await addToCart(parseInt(productId), newQuantity); // Update quantity in the database
+      } else {
+        await removeFromCart(parseInt(productId)); // Remove item if quantity is 0
+      }
+
+      // Fetch updated cart items
+      // await fetchCartItems(); // Fetch updated cart items
+
+      // Update category items to reflect the new cart quantity
+      // setCategoryItems((prevItems: any[]) =>
+      //   prevItems.map((item: {ProductId: string}) =>
+      //     item.ProductId === productId
+      //       ? {...item, Quantity: newQuantity} // Update cart quantity in local state
+      //       : item,
+      //   ),
+      // );
+      setInputQuantity(prev => ({
+        ...prev,
+        [productId]: newQuantity, // Update with valid quantity
+      }));
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+    } finally {
+      setLoadingStates(prev => ({...prev, [productId]: false}));
+    }
+  };
+
+  const handleIncrementQuantity = React.useCallback(
+    (productId: string, currentQuantity: number) => {
+      console.log('currentQuantity', currentQuantity);
+      handleQuantityChange(productId, currentQuantity + 1); // Increment quantity
     },
+    [], // Make sure handleIncrementQuantity doesn't change unless necessary
   );
 
+  React.useEffect(() => {
+    let filteredCategoryItemsArray = [];
+    // Check if inputType is 'scan' or 'search'
+    if (searchTerm?.inputType === 'scan' && searchTerm?.barCodeValue) {
+      // Filter for exact match of ProductCode when scanning
+      filteredCategoryItemsArray = categoryItems.filter(
+        (item: {ProductName: string; ProductCode: string}) =>
+          item.ProductCode?.toLowerCase() ===
+          searchTerm?.barCodeValue?.toLowerCase(), // Exact match on ProductCode
+      );
+      // const filteredInputQuantityArray = inputQuantity.filter(
+      //   (item: {ProductName: string; ProductCode: string}) =>
+      //     item.ProductCode === searchTerm?.barCodeValue, // Exact match on ProductCode
+      // );
+      if (filteredCategoryItemsArray?.length > 0) {
+        console.log(
+          'filteredInputQuantityArray',
+          inputQuantity,
+          filteredCategoryItemsArray?.[0]?.ProductId,
+        );
+        handleIncrementQuantity(
+          filteredCategoryItemsArray?.[0]?.ProductId,
+          inputQuantity?.[filteredCategoryItemsArray?.[0]?.ProductId],
+        );
+      }
+    } else {
+      filteredCategoryItemsArray = categoryItems.filter(
+        (item: {ProductName: string; ProductCode: string}) => {
+          // Split the search term into individual words and make them lowercase
+          const searchWords = (searchTerm?.barCodeValue || '')
+            .toLowerCase()
+            .split(/\s+/);
+
+          // Check if all search words are found in either ProductName or ProductCode
+          return searchWords.every(
+            (word: string) =>
+              item.ProductName.toLowerCase().includes(word) ||
+              item.ProductCode.toLowerCase().includes(word),
+          );
+        },
+      );
+    }
+    setFilteredCategoryItems(filteredCategoryItemsArray);
+  }, [categoryItems, handleIncrementQuantity, searchTerm]);
   const showToast = (message: React.SetStateAction<string>) => {
     console.log('showToast', message);
     setToastMessage(message);
@@ -310,45 +387,6 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
     } finally {
       // setLoadingStates(prev => ({...prev, [item.ProductId]: false})); // Use ProductId directly
     }
-  };
-
-  const handleQuantityChange = async (
-    productId: string,
-    newQuantity: number,
-  ) => {
-    setLoadingStates(prev => ({...prev, [productId]: true}));
-    try {
-      console.log('handleQuantityChange', newQuantity, newQuantity > 0);
-      if (newQuantity > 0) {
-        await addToCart(parseInt(productId), newQuantity); // Update quantity in the database
-      } else {
-        await removeFromCart(parseInt(productId)); // Remove item if quantity is 0
-      }
-
-      // Fetch updated cart items
-      // await fetchCartItems(); // Fetch updated cart items
-
-      // Update category items to reflect the new cart quantity
-      setCategoryItems((prevItems: any[]) =>
-        prevItems.map((item: {ProductId: string}) =>
-          item.ProductId === productId
-            ? {...item, Quantity: newQuantity} // Update cart quantity in local state
-            : item,
-        ),
-      );
-    } catch (error) {
-      console.error('Error updating quantity:', error);
-    } finally {
-      setLoadingStates(prev => ({...prev, [productId]: false}));
-    }
-  };
-
-  const handleIncrementQuantity = (
-    productId: string,
-    currentQuantity: number,
-  ) => {
-    console.log('currentQuantity', currentQuantity);
-    handleQuantityChange(productId, currentQuantity + 1); // Increment quantity
   };
 
   const handleDecrementQuantity = (
@@ -583,6 +621,7 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
                   // }}
                   keyboardType="phone-pad"
                   style={{
+                    textAlign: 'center',
                     borderRadius: 8,
                     borderWidth: 1,
                     borderColor:
@@ -703,7 +742,16 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
                 flex: 1,
                 marginRight: 10,
               }}>
-              <FloatingLabelInput
+              <BarcodeScan
+                label="Search/Scan Item"
+                value={searchTerm}
+                onData={(data: any) => {
+                  console.log('Search/Scan Item', data);
+                  setSearchTerm(data);
+                }}
+                reloadKey={reloadBarCodeScan}
+              />
+              {/* <FloatingLabelInput
                 label="Search Item"
                 value={searchTerm}
                 onChangeText={setSearchTerm} // Update search term
@@ -711,7 +759,7 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
                 editable={!isLoading}
                 autoCapitalize="none"
                 // secureTextEntry={true}
-              />
+              /> */}
             </View>
           </View>
 
@@ -721,7 +769,7 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
               <Text style={styles.noItemsTitle}>No Items Found</Text>
               <Text style={styles.noItemsSubtext}>
                 {searchTerm
-                  ? `No results found for "${searchTerm}"`
+                  ? `No results found for "${searchTerm?.barCodeValue}"`
                   : 'No items available for selected category'}
               </Text>
             </View>

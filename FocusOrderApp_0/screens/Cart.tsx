@@ -536,7 +536,7 @@ function Cart({
               let resultBatch: {
                 BatchId: any;
                 BatchNo: any;
-                ExpDate: any;
+                ExpDate__Id: any;
                 Qty: any;
               }[] = [];
               let totalQty = 0;
@@ -552,7 +552,8 @@ function Cart({
                   resultBatch.push({
                     BatchId: batch.iBatchId,
                     BatchNo: batch.sBatchNo,
-                    ExpDate: batch.iExpiryDate,
+                    // ExpDate: batch.iExpiryDate,
+                    ExpDate__Id: batch.iExpiryDateId,
                     Qty: batchQty,
                   });
                   totalQty += batchQty;
@@ -638,21 +639,29 @@ function Cart({
             data: [
               {
                 Body: [
-                  {
-                    Account__Id: parsedPOSSalesPreferences?.CashAccount,
-                    Amount: totalCash,
-                    PaymentType: 0,
-                  },
+                  ...(totalCash > 0
+                    ? [
+                        {
+                          Account__Id: parsedPOSSalesPreferences?.CashAccount,
+                          Amount: totalCash,
+                          PaymentType: 0,
+                        },
+                      ]
+                    : []),
 
-                  {
-                    Account__Id: parsedPOSSalesPreferences?.UPI_MPAccount,
-                    Amount: totalUpiMp,
-                    PaymentType: 1,
-                  },
+                  ...(totalUpiMp > 0
+                    ? [
+                        {
+                          Account__Id: parsedPOSSalesPreferences?.UPI_MPAccount,
+                          Amount: totalUpiMp,
+                          PaymentType: 1,
+                        },
+                      ]
+                    : []),
                 ],
                 Header: {
                   Date: dateToInt(new Date()),
-                  Account__Id: parsedPOSSalesPreferences?.SalesAccount,
+                  Account__Id: parsedPOSSalesPreferences?.CustomerAccount,
                   'Company-Branch__Id': parsedPOSSalesPreferences?.compBranchId,
                   Branch__Id: parsedPOSSalesPreferences?.Branch,
                   Employee__Id: parsedPOSSalesPreferences?.employeeId,
@@ -989,6 +998,7 @@ function Cart({
                 onFocus={() => setShowBillDetails(false)}
                 keyboardType="phone-pad"
                 style={{
+                  textAlign: 'center',
                   borderRadius: 8,
                   borderWidth: 1,
                   borderColor: '#0f6cbd',
