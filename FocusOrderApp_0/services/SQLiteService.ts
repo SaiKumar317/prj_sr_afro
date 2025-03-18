@@ -152,6 +152,211 @@ export const insertPrices = async (db: SQLite.SQLiteDatabase, prices: any[]) => 
   });
 };
 
+export const createSalesInvoicePendingTable = async (db: SQLite.SQLiteDatabase) => {
+  const query = `CREATE TABLE IF NOT EXISTS SalesInvoicePending (
+    HeaderId INTEGER PRIMARY KEY,
+    sVoucherNo TEXT,
+    LinkStatus TEXT,
+    companyBranchId INTEGER,
+    branchId INTEGER
+  );`;
+
+  await db.executeSql(query);
+};
+
+
+export const insertSalesInvoicesPending = async (db: SQLite.SQLiteDatabase, data: any[]) => {
+  const insertQuery = `INSERT OR REPLACE INTO SalesInvoicePending (
+    HeaderId, 
+    sVoucherNo, 
+    LinkStatus,
+    companyBranchId,
+    branchId
+  ) VALUES (?, ?, ?, ?, ?);`;
+
+  await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
+    data.forEach(doc => {
+      const {iHeaderId,sVoucherNo,LinkStatus,companyBranchId, branchId } = doc;
+      // Insert each SalesInvoicePending item into the database
+      tx.executeSql(insertQuery, [iHeaderId, sVoucherNo, LinkStatus, companyBranchId, branchId]);
+    });
+  });
+};
+
+export const getSalesInvoicesPending = async () => {
+  const db = await getDBConnection();  // Open the database connection
+   var storedPOSSalePreferenceData: any = await AsyncStorage.getItem(
+          'POSSalePreferenceData',
+        );
+        var parsedPOSSalesPreferences = JSON.parse(storedPOSSalePreferenceData);
+  const selectQuery = `SELECT distinct s.HeaderId [value], s.sVoucherNo [label], s.companyBranchId, s.branchId  
+  FROM SalesInvoicePending s
+  JOIN SalesInvoiceDetails d ON s.HeaderId = d.HeaderId
+  where s.companyBranchId =${parsedPOSSalesPreferences?.compBranchId} 
+  and  s.branchId=${parsedPOSSalesPreferences?.Branch} 
+  and (COALESCE(d.Balance, 0) - COALESCE(d.LocalReturn, 0)) > 0
+  Order by s.HeaderId desc;`;  // Select all records from the SalesInvoicePending table
+
+  const [results] = await db.executeSql(selectQuery);  // Execute the SQL query and get the results
+  const salesInvoicesPending = [];  // Initialize an empty array to store the results
+  for (let i = 0; i < results.rows.length; i++) {
+    salesInvoicesPending.push(results.rows.item(i));  // Push each record into the array
+  }
+  console.log("salesInvoicesPending",salesInvoicesPending);
+  return salesInvoicesPending;  // Return the array of Sales Invoices Pending
+};
+
+export const createSalesInvoiceDetailsTable = async (db: SQLite.SQLiteDatabase) => {
+  const query = `CREATE TABLE IF NOT EXISTS SalesInvoiceDetails (
+    BodyId INTEGER PRIMARY KEY,  -- iBodyId is now the primary key
+    HeaderId INTEGER,
+    sVoucherNo TEXT,
+    orderQty REAL,
+    Product INTEGER,
+    Balance REAL,
+    mRate REAL,
+    LocalReturn REAL,
+    discountP REAL,
+    discountAmt REAL,
+    vat REAL,
+    excise REAL,
+    BatchId INTEGER,
+    BatchNo TEXT,
+    ExpiryDate TEXT,
+    companyBranchId INTEGER,
+    branchId INTEGER,
+    POSCustomerMobileNumber TEXT,
+    POSCustomerName TEXT,
+    invoiceDate INTEGER,
+    iMfDate INTEGER
+  );`;
+
+  await db.executeSql(query);
+};
+
+export const insertSalesInvoiceDetails = async (db: SQLite.SQLiteDatabase, data: any[]) => {
+  const insertQuery = `INSERT OR REPLACE INTO SalesInvoiceDetails (
+    BodyId, 
+    HeaderId, 
+    sVoucherNo, 
+    orderQty,
+    Product,
+    Balance,
+    mRate,
+    discountP,
+    discountAmt,
+    vat,
+    excise,
+    BatchId,
+    BatchNo,
+    ExpiryDate,
+    companyBranchId,
+    branchId,
+    POSCustomerMobileNumber,
+    POSCustomerName,
+    invoiceDate,
+    iMfDate
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?,?);`;
+
+  await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
+    data.forEach(doc => {
+      const { iBodyId, iHeaderId, sVoucherNo, orderQty, iProduct, Balance,mRate, discountP, discountAmt, vat, excise, iBatchId, sBatchNo, iExpiryDate, companyBranchId,branchId, POSCustomerMobileNumber, POSCustomerName, invoiceDate, iMfDate } = doc;
+      // Insert each SalesInvoiceDetail item into the database
+      tx.executeSql(insertQuery, [
+        iBodyId, iHeaderId, sVoucherNo, orderQty, iProduct, Balance,mRate, discountP, discountAmt, vat, excise, iBatchId, sBatchNo, iExpiryDate, companyBranchId, branchId, POSCustomerMobileNumber, POSCustomerName, invoiceDate, iMfDate,
+      ]);
+    });
+  });
+};
+export const updateSalesInvoiceQty = async (db: SQLite.SQLiteDatabase, data: any[]) => {
+  const insertQuery = `
+       UPDATE SalesInvoiceDetails
+    SET 
+      Balance =  COALESCE(Balance, 0) - ?  
+    WHERE BodyId = ?;`;
+
+  await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
+    data.forEach(doc => {
+      const { Quantity, bodyId } = doc;
+      // console.log("inputQty", Quantity, bodyId);
+      tx.executeSql(insertQuery, [
+      Quantity, bodyId,
+      ]);
+    });
+  });
+};
+// export const updateSalesInvoiceNo = async (db: SQLite.SQLiteDatabase, data: any[]) => {
+//   const insertQuery = `
+//        UPDATE SalesInvoicePending
+//     SET 
+//       LinkStatus =  'Closed'  
+//     WHERE BodyId = ?;`;
+
+//   await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
+//     data.forEach(doc => {
+//       const {inputQty, iBodyId} = doc;
+//       tx.executeSql(insertQuery, [
+//       inputQty, iBodyId,
+//       ]);
+//     });
+//   });
+// };
+
+export const getSalesInvoiceDetails = async (headerId: number) => {
+  const db = await getDBConnection();  // Open the database connection
+  var storedPOSSalePreferenceData: any = await AsyncStorage.getItem('POSSalePreferenceData');
+  var parsedPOSSalesPreferences = JSON.parse(storedPOSSalePreferenceData);
+
+  // SQL query to select records from SalesInvoiceDetails with additional filter for Balance - LocalReturn > 0
+  // and joining the Products table to fetch ProductImage, ProductName, and ProductCode
+  const selectQuery = `SELECT 
+                        sid.BodyId, 
+                        sid.HeaderId, 
+                        sid.sVoucherNo, 
+                        sid.orderQty, 
+                        sid.Product, 
+                        sid.Balance, 
+                        sid.mRate, 
+                        sid.LocalReturn, 
+                        sid.discountP, 
+                        sid.discountAmt, 
+                        sid.vat, 
+                        sid.excise, 
+                        sid.BatchId, 
+                        sid.BatchNo, 
+                        sid.ExpiryDate,
+                        sid.POSCustomerMobileNumber,
+                        sid.POSCustomerName,
+                        sid.invoiceDate,
+                        sid.iMfDate,
+                        p.ProductImage,
+                        p.ProductName,
+                        p.ProductCode,
+                        p.CurrencyId,
+                        p.CurrencyCode,
+                        0 inputQty
+                       FROM SalesInvoiceDetails sid
+                       JOIN Products p ON sid.Product = p.ProductId  -- Join with the Products table on ProductId
+                       WHERE sid.companyBranchId = ${parsedPOSSalesPreferences?.compBranchId} 
+                         AND sid.branchId = ${parsedPOSSalesPreferences?.Branch} 
+                         AND sid.HeaderId = ${headerId}  -- Filter based on provided HeaderId
+                         AND (COALESCE(sid.Balance, 0) - COALESCE(sid.LocalReturn, 0)) > 0  -- Handle NULL values
+                       ORDER BY sid.BodyId;`;
+
+  const [results] = await db.executeSql(selectQuery);  // Execute the SQL query and get the results
+  const salesInvoiceDetails = [];  // Initialize an empty array to store the results
+
+  // Loop through the result set and push each row to the array
+  for (let i = 0; i < results.rows.length; i++) {
+    salesInvoiceDetails.push(results.rows.item(i));  // Push each record into the array
+  }
+
+  // console.log("salesInvoiceDetails", salesInvoiceDetails);  // Log the results for debugging
+  return salesInvoiceDetails;  // Return the array of Sales Invoice Details
+};
+
+
+
 
 
 const executeTransaction = async (db: SQLite.SQLiteDatabase) => {
@@ -354,6 +559,24 @@ export const updateConsumedQtyLocal = async (db: { transaction: (arg0: (tx: any)
         // Handle any SQL errors
         console.error("Error updating Stock table:", error);
       });
+    });
+  });
+};
+export const updateConsumedReturnQtyLocal = async (db: SQLite.SQLiteDatabase, data: any[]) => {
+const updateQuery = `
+    UPDATE SalesInvoiceDetails
+    SET 
+      LocalReturn =  COALESCE(LocalReturn, 0) + ?  
+    WHERE BodyId = ?;  
+  `;
+
+  await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
+    data.forEach(doc => {
+      const { Quantity, bodyId } = doc;
+      // console.log("inputQty", Quantity, bodyId);
+      tx.executeSql(updateQuery, [
+      Quantity, bodyId,
+      ]);
     });
   });
 };

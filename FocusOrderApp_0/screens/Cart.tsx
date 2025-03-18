@@ -115,6 +115,7 @@ function Cart({
   const [totalUpiMp, setTotalUpiMp] = useState<any>(0);
   const [customerName, setCustomerName] = useState<any>(null);
   const [mobileNum, setMobileNum] = useState<any>(null);
+  const [narration, setNarration] = useState<any>(null);
   const dateToInt = (date: {
     getDate: () => number;
     getMonth: () => number;
@@ -326,6 +327,7 @@ function Cart({
       setInputQuantity({});
       setSelectedCustAcc(null);
       setCustomerName(null);
+      setNarration(null);
       setMobileNum(null);
       fetchCategoryItems(); // Fetch cart items when the screen is focused
     }, []),
@@ -360,16 +362,19 @@ function Cart({
       clearTimeout(timeoutId); // Clear the timeout if the request completes in time
 
       if (!response.ok) {
+        onData({isLoading: false});
         return {success: false, message: 'Response not OK'}; // Return object with failure message
       }
 
       const data = await response.json();
       return data; // Return object with success status and data
-    } catch (error) {
+    } catch (error: any) {
       if (error.name === 'AbortError') {
+        onData({isLoading: false});
         console.error('Fetch request timed out:', error);
         return {success: false, message: 'Request timed out'}; // Return object with timeout message
       } else {
+        onData({isLoading: false});
         console.error('There was a problem with the fetch request:', error);
         return {success: false, message: 'Fetch request failed'}; // Return object with error message
       }
@@ -517,6 +522,31 @@ function Cart({
           const bodyData = [];
           const db = await getDBConnection();
           const consumedQty: any[] = [];
+
+          const categoryItemsArray = categoryItems.map(
+            (item: {
+              ProductId: any;
+              Quantity: any;
+              Rate: any;
+              discountP: any;
+              discountAmt: any;
+              vat: any;
+              excise: any;
+            }) => {
+              return {
+                // Return an object with required properties
+                ProductId: item.ProductId,
+                Quantity: item.Quantity,
+                Rate: item.Rate,
+                discountP: item.discountP,
+                discountAmt: item.discountAmt,
+                vat: item.vat,
+                excise: item.excise,
+                iInvTag: parsedPOSSalesPreferences?.warehouseId,
+              };
+            },
+          );
+
           for (let x in categoryItems) {
             const iProduct = categoryItems[x]?.ProductId;
             const iInvTag = parsedPOSSalesPreferences?.warehouseId;
@@ -622,7 +652,7 @@ function Cart({
                   Warehouse__Id: parsedPOSSalesPreferences?.warehouseId,
                   Branch__Id: parsedPOSSalesPreferences?.Branch,
                   Employee__Id: parsedPOSSalesPreferences?.employeeId,
-                  sNarration: '',
+                  sNarration: narration,
                   POSCustomerName: customerName,
                   POSCustomerMobileNumber: mobileNum,
                 },
@@ -666,6 +696,7 @@ function Cart({
                   Branch__Id: parsedPOSSalesPreferences?.Branch,
                   Employee__Id: parsedPOSSalesPreferences?.employeeId,
                   MobilePOSSaleDate: dateToInt(new Date()),
+                  sNarration: narration,
                   MobilePOSSaleNumber: '',
                 },
               },
@@ -748,6 +779,7 @@ function Cart({
                 salesOrderRequest,
                 salesReceiptBody,
                 consumedQty,
+                categoryItemsArray,
               ); // Save the response to local DB
               await deleteAllCartData()
                 .then(() => {
@@ -1293,7 +1325,7 @@ function Cart({
                     flexDirection: 'row',
                     justifyContent: 'space-around',
                     gap: 20,
-                    padding: 10,
+                    padding: 5,
                   },
                 ]}>
                 <View style={{flex: 1}}>
@@ -1318,7 +1350,7 @@ function Cart({
                 </View>
               </View>
 
-              <View style={{padding: 10}}>
+              <View style={{padding: 5}}>
                 <FloatingLabelInput
                   label={'POS Customer Name'}
                   value={customerName}
@@ -1330,7 +1362,8 @@ function Cart({
                   autoCapitalize="none"
                 />
               </View>
-              <View style={{padding: 10}}>
+
+              <View style={{padding: 5}}>
                 <FloatingLabelInput
                   label={'POS Customer Mobile Number'}
                   value={mobileNum}
@@ -1345,7 +1378,16 @@ function Cart({
                   autoCapitalize="none"
                 />
               </View>
-
+              <View style={{padding: 5}}>
+                <FloatingLabelInput
+                  label={'Narration'}
+                  value={narration}
+                  onChangeText={text => setNarration(text.replace(/^\s+/, ''))}
+                  kbType="default"
+                  editable={!isLoading}
+                  autoCapitalize="none"
+                />
+              </View>
               {showManditory && (
                 <Text style={{color: 'red', paddingBottom: 20}}>
                   {!customerName ||
@@ -1701,7 +1743,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'space-between', // Changed to align at the top
-    backgroundColor: '#f9f9f9', // Light background color for the whole list
+    // backgroundColor: '#f9f9f9', // Light background color for the whole list
+    backgroundColor: 'white',
     height: screenHeight,
     padding: 15, // Added more padding to the container for better spacing
     borderBottomRightRadius: 15, // Slightly more rounded corners

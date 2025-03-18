@@ -10,6 +10,7 @@ import {
   DrawerLayoutAndroid,
   StyleSheet,
   Image,
+  ScrollView,
 } from 'react-native';
 
 import {Provider as PaperProvider} from 'react-native-paper';
@@ -32,6 +33,8 @@ import {
   faCartFlatbedSuitcase,
   faRoute,
   faCubesStacked,
+  faRightLeft,
+  faCartArrowDown,
 } from '@fortawesome/free-solid-svg-icons';
 import renderLoadingView from '../constants/LoadingView';
 import Features from './Features';
@@ -40,12 +43,16 @@ import Cart from './Cart';
 import {syncCustomers} from '../services/SyncCustomersService';
 import {syncItems} from '../services/SyncItemsService';
 import {syncPrices} from '../services/SyncPricesService';
-import {getSalesOrderCount} from '../services/OrdersServices';
+import {
+  getSalesOrderCount,
+  getSalesReturnCount,
+} from '../services/OrdersServices';
 import getSyncOrders from '../pages/getSyncOrders';
 import CategoryItems from './CategoryItems';
 import PreferencesPage from '../pages/PreferencesPage';
 import {syncStock} from '../services/SyncStock';
 import {useNavigationState} from '@react-navigation/native';
+import SalesReturnsPage from '../pages/SalesReturnsPage';
 
 declare function alert(message?: any): void;
 const Stack = createNativeStackNavigator();
@@ -287,12 +294,15 @@ function MainTabs({
   }, []);
 
   const [orderCount, setOrderCount] = useState(0);
+  const [returnCount, setReturnCount] = useState(0);
 
   // Fetch the order count when the component mounts
   useEffect(() => {
     const fetchOrderCount = async () => {
       const count = await getSalesOrderCount();
+      const returnOrdersCount = await getSalesReturnCount();
       setOrderCount(count);
+      setReturnCount(returnOrdersCount);
     };
 
     fetchOrderCount();
@@ -300,34 +310,48 @@ function MainTabs({
 
   const navigationView = () => (
     <View style={styles.drawer}>
-      <View style={styles.drawerContent}>
-        <View style={styles.drawerHeader}>
-          <View style={styles.headerRow}>
-            <Image
-              source={require('../assets/images/focus_rt.png')}
-              style={styles.headerImage}
-              resizeMode="contain"
-            />
-            <View style={styles.userInfo}>
-              <Text style={styles.username}>{username}</Text>
-              <Text style={styles.companyName}>{companyName}</Text>
+      <ScrollView>
+        <View style={styles.drawerContent}>
+          <View style={styles.drawerHeader}>
+            <View style={styles.headerRow}>
+              <Image
+                source={require('../assets/images/focus_rt.png')}
+                style={styles.headerImage}
+                resizeMode="contain"
+              />
+              <View style={styles.userInfo}>
+                <Text style={styles.username}>{username}</Text>
+                <Text style={styles.companyName}>{companyName}</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        <TouchableOpacity
-          style={styles.drawerItem}
-          onPress={() => {
-            drawerRef.current?.closeDrawer();
-            setReloadCategory(prevState => !prevState); // Toggle the state to trigger a reload
-          }}>
-          <View style={styles.menuItem}>
-            <FontAwesomeIcon icon={faShoppingBag} size={20} color="#0f6cbd" />
-            <Text style={styles.menuItemText}>Orders</Text>
-          </View>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.drawerItem}
+            onPress={() => {
+              drawerRef.current?.closeDrawer();
+              setReloadCategory(prevState => !prevState); // Toggle the state to trigger a reload
+              mainNavigation.navigate('TabStack'); // Navigate to the desired screen
+            }}>
+            <View style={styles.menuItem}>
+              <FontAwesomeIcon icon={faShoppingBag} size={25} color="#0f6cbd" />
+              <Text style={styles.menuItemText}>Orders</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.drawerItem}
+            onPress={() => {
+              drawerRef.current?.closeDrawer();
+              mainNavigation.navigate('SalesReturnsPage'); // Navigate to the desired screen
+            }}>
+            <View style={styles.menuItem}>
+              {/* Return */}
+              <FontAwesomeIcon icon={faRightLeft} size={25} color="#0f6cbd" />
+              <Text style={styles.menuItemText}>Returns</Text>
+            </View>
+          </TouchableOpacity>
 
-        {/* <TouchableOpacity
+          {/* <TouchableOpacity
           style={styles.drawerItem}
           onPress={() => {
             drawerRef.current?.closeDrawer();
@@ -338,7 +362,7 @@ function MainTabs({
             <Text style={styles.menuItemText}>Collections</Text>
           </View>
         </TouchableOpacity> */}
-        {/* 
+          {/* 
         <TouchableOpacity
           style={styles.drawerItem}
           onPress={async () => {
@@ -360,132 +384,178 @@ function MainTabs({
           </View>
         </TouchableOpacity> */}
 
-        <TouchableOpacity
-          style={styles.drawerItem}
-          onPress={async () => {
-            drawerRef.current?.closeDrawer();
-            setIsLoading(true);
-            try {
-              const result: any = await syncItems();
-              alert(result.message);
-              setReloadCategory(prevState => !prevState);
-            } catch (error: any) {
-              alert('Failed to sync items: ' + error.message);
-            } finally {
-              setIsLoading(false);
-            }
-          }}>
-          <View style={styles.menuItem}>
-            <FontAwesomeIcon icon={faBoxes} size={20} color="#0f6cbd" />
-            <Text style={styles.menuItemText}>Sync Items</Text>
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.drawerItem}
-          onPress={async () => {
-            drawerRef.current?.closeDrawer();
-            setIsLoading(true);
-            try {
-              const result: any = await syncStock();
-              alert(result.message);
-              setReloadCategory(prevState => !prevState);
-            } catch (error: any) {
-              alert('Failed to sync items: ' + error.message);
-            } finally {
-              setIsLoading(false);
-            }
-          }}>
-          <View style={styles.menuItem}>
-            <FontAwesomeIcon icon={faCubesStacked} size={20} color="#0f6cbd" />
-            <Text style={styles.menuItemText}>Sync Available Stock</Text>
-          </View>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.drawerItem}
+            onPress={async () => {
+              drawerRef.current?.closeDrawer();
+              setIsLoading(true);
+              try {
+                const result: any = await syncItems();
+                alert(result.message);
+                setReloadCategory(prevState => !prevState);
+              } catch (error: any) {
+                alert('Failed to sync items: ' + error.message);
+              } finally {
+                setIsLoading(false);
+              }
+            }}>
+            <View style={styles.menuItem}>
+              <FontAwesomeIcon icon={faBoxes} size={25} color="#0f6cbd" />
+              <Text style={styles.menuItemText}>Sync Items</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.drawerItem}
+            onPress={async () => {
+              drawerRef.current?.closeDrawer();
+              setIsLoading(true);
+              try {
+                const result: any = await syncStock();
+                alert(result.message);
+                setReloadCategory(prevState => !prevState);
+              } catch (error: any) {
+                alert('Failed to sync items: ' + error.message);
+              } finally {
+                setIsLoading(false);
+              }
+            }}>
+            <View style={styles.menuItem}>
+              <FontAwesomeIcon
+                icon={faCubesStacked}
+                size={25}
+                color="#0f6cbd"
+              />
+              <Text style={styles.menuItemText}>Sync Available Stock</Text>
+            </View>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.drawerItem}
-          onPress={async () => {
-            drawerRef.current?.closeDrawer();
-            setIsLoading(true);
-            try {
-              const result = await syncPrices();
-              alert(result.message);
-              setReloadCategory(prevState => !prevState);
-            } catch (error: any) {
-              alert('Failed to sync Prices: ' + error.message);
-            } finally {
-              setIsLoading(false);
-            }
-          }}>
-          <View style={styles.menuItem}>
-            <FontAwesomeIcon icon={faTags} size={20} color="#0f6cbd" />
-            <Text style={styles.menuItemText}>Sync Prices</Text>
-          </View>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.drawerItem}
+            onPress={async () => {
+              drawerRef.current?.closeDrawer();
+              setIsLoading(true);
+              try {
+                const result = await syncPrices();
+                alert(result.message);
+                setReloadCategory(prevState => !prevState);
+              } catch (error: any) {
+                alert('Failed to sync Prices: ' + error.message);
+              } finally {
+                setIsLoading(false);
+              }
+            }}>
+            <View style={styles.menuItem}>
+              <FontAwesomeIcon icon={faTags} size={25} color="#0f6cbd" />
+              <Text style={styles.menuItemText}>Sync Prices</Text>
+            </View>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.drawerItem}
-          onPress={
-            orderCount > 0
-              ? async () => {
-                  drawerRef.current?.closeDrawer();
-                  setIsLoading(true);
-                  try {
-                    await getSyncOrders(); // Call getSyncOrders
-                    setReloadCategory(prevState => !prevState); // Toggle the state to trigger a reload
-                    setReloadKey(prev => !prev); // Set the value of reloadKey
-                    console.log('Sync Orders pressed');
-                  } catch (error) {
-                    console.error('Error syncing orders:', error);
-                  } finally {
-                    setIsLoading(false);
+          <TouchableOpacity
+            style={styles.drawerItem}
+            onPress={
+              orderCount > 0
+                ? async () => {
+                    drawerRef.current?.closeDrawer();
+                    setIsLoading(true);
+                    try {
+                      await getSyncOrders(); // Call getSyncOrders
+                      setReloadCategory(prevState => !prevState); // Toggle the state to trigger a reload
+                      setReloadKey(prev => !prev); // Set the value of reloadKey
+                      console.log('Sync Orders pressed');
+                    } catch (error) {
+                      console.error('Error syncing orders:', error);
+                    } finally {
+                      setIsLoading(false);
+                    }
                   }
-                }
-              : () => {
-                  drawerRef.current?.closeDrawer();
-                  alert('No orders to sync'); // Show alert if orderCount is 0
-                }
-          } // Show alert if orderCount is 0
-          // disabled={orderCount === 0} // Disable the button if orderCount is 0
-        >
-          <View style={styles.menuItem}>
-            <FontAwesomeIcon
-              icon={faCartFlatbedSuitcase}
-              size={20}
-              color="#0f6cbd"
+                : () => {
+                    drawerRef.current?.closeDrawer();
+                    alert('No orders to sync'); // Show alert if orderCount is 0
+                  }
+            } // Show alert if orderCount is 0
+            // disabled={orderCount === 0} // Disable the button if orderCount is 0
+          >
+            <View style={styles.menuItem}>
+              <FontAwesomeIcon
+                icon={faCartFlatbedSuitcase}
+                size={25}
+                color="#0f6cbd"
+              />
+              <Text style={styles.menuItemText}>
+                Sync Orders
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{orderCount}</Text>
+                </View>
+              </Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.drawerItem}
+            onPress={
+              returnCount > 0
+                ? async () => {
+                    drawerRef.current?.closeDrawer();
+                    setIsLoading(true);
+                    try {
+                      // await getSyncOrders(); // Call getSyncOrders
+                      // setReloadCategory(prevState => !prevState); // Toggle the state to trigger a reload
+                      setReloadKey(prev => !prev); // Set the value of reloadKey
+                      console.log('Sync Orders pressed');
+                    } catch (error) {
+                      console.error('Error syncing orders:', error);
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }
+                : () => {
+                    drawerRef.current?.closeDrawer();
+                    alert('No orders to sync'); // Show alert if orderCount is 0
+                  }
+            } // Show alert if orderCount is 0
+            // disabled={orderCount === 0} // Disable the button if orderCount is 0
+          >
+            <View style={styles.menuItem}>
+              <FontAwesomeIcon
+                icon={faCartArrowDown}
+                size={25}
+                color="#0f6cbd"
+              />
+              <Text style={styles.menuItemText}>
+                Sync Sales Return
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{returnCount}</Text>
+                </View>
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+      <View>
+        <View style={[styles.focusimageContainer]}>
+          <Text style={{fontSize: 10, color: '#a19aa0'}}>
+            Powered by Focus Softnet Pvt Ltd
+          </Text>
+          <View style={{alignItems: 'center', marginTop: 5}}>
+            <Image
+              source={require('../assets/images/focus_rt.png')} // Change the path to your PNG image
+              style={styles.focusimage}
             />
-            <Text style={styles.menuItemText}>
-              Sync Orders
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{orderCount}</Text>
-              </View>
-            </Text>
+          </View>
+        </View>
+
+        {/* Logout button at bottom */}
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={() => {
+            drawerRef.current?.closeDrawer();
+            handleLogout();
+          }}>
+          <View style={styles.menuItem}>
+            <FontAwesomeIcon icon={faSignOutAlt} size={20} color="#dc3545" />
+            <Text style={[styles.menuItemText, styles.logoutText]}>Logout</Text>
           </View>
         </TouchableOpacity>
       </View>
-      <View style={[styles.focusimageContainer]}>
-        <Text style={{fontSize: 10, color: '#a19aa0'}}>
-          Powered by Focus Softnet Pvt Ltd
-        </Text>
-        <View style={{alignItems: 'center', marginTop: 5}}>
-          <Image
-            source={require('../assets/images/focus_rt.png')} // Change the path to your PNG image
-            style={styles.focusimage}
-          />
-        </View>
-      </View>
-
-      {/* Logout button at bottom */}
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={() => {
-          drawerRef.current?.closeDrawer();
-          handleLogout();
-        }}>
-        <View style={styles.menuItem}>
-          <FontAwesomeIcon icon={faSignOutAlt} size={20} color="#dc3545" />
-          <Text style={[styles.menuItemText, styles.logoutText]}>Logout</Text>
-        </View>
-      </TouchableOpacity>
     </View>
   );
 
@@ -539,6 +609,16 @@ function MainTabs({
               />
             )}
           />
+          <Stack.Screen
+            name="SalesReturnsPage"
+            children={props => (
+              <SalesReturnsPage
+                // handleBackPage={handleBackPage}
+                drawerRef={drawerRef}
+                {...props} // Pass any additional props if needed
+              />
+            )}
+          />
         </Stack.Navigator>
       </DrawerLayoutAndroid>
       {/* </NavigationContainer> */}
@@ -568,6 +648,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'white',
     padding: 16,
+
     justifyContent: 'space-between',
   },
   drawerContent: {
@@ -581,7 +662,7 @@ const styles = StyleSheet.create({
   drawerItem: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#dbdbdb',
   },
   menuItem: {
     flexDirection: 'row',
@@ -591,7 +672,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 16,
     color: '#333',
-    fontWeight: '500',
+    fontWeight: '700',
   },
   focusimageContainer: {
     marginBottom: 10,

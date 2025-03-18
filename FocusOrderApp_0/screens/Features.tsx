@@ -346,8 +346,8 @@ const Features: React.FC<FeaturesProps> = ({
   );
 
   return (
-    <>
-      <View>
+    <View>
+      <ScrollView>
         <View style={styles.menuDropDown}>
           <FlatList
             data={menuItems}
@@ -359,15 +359,15 @@ const Features: React.FC<FeaturesProps> = ({
             columnWrapperStyle={styles.columnWrapper}
           />
         </View>
-      </View>
-    </>
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   menuDropDown: {
     flex: 1,
-    backgroundColor: '#f0f0f0', // Lighter background
+    backgroundColor: 'white', // Lighter background
     minHeight: screenHeight,
     padding: 12,
   },

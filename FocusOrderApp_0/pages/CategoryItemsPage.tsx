@@ -139,10 +139,17 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
       //   (item: {ProductName: string; ProductCode: string}) =>
       //     item.ProductCode === searchTerm?.barCodeValue, // Exact match on ProductCode
       // );
-      if (filteredCategoryItemsArray?.length > 0) {
+      if (
+        filteredCategoryItemsArray?.length > 0 &&
+        filteredCategoryItemsArray?.[0]?.Rate > 0 &&
+        filteredCategoryItemsArray?.[0]?.TotalStock > 0 &&
+        filteredCategoryItemsArray?.[0]?.ProductId
+      ) {
         console.log(
           'filteredInputQuantityArray',
           inputQuantity,
+          filteredCategoryItemsArray?.[0]?.Rate > 0,
+          filteredCategoryItemsArray?.[0]?.TotalStock > 0,
           filteredCategoryItemsArray?.[0]?.ProductId,
         );
         handleIncrementQuantity(
@@ -905,7 +912,8 @@ const styles = StyleSheet.create({
     // flex: 1,
     alignItems: 'center',
     // justifyContent: 'center',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: 'white',
+    // backgroundColor: '#f0f0f0',
     height: screenHeight,
     padding: 10,
     borderBottomRightRadius: 10,

@@ -303,7 +303,7 @@ const BarcodeScan: React.FC<BarcodeScanProps> = ({
     borderRadius: 6,
     position: 'absolute',
     left: 4,
-    top: -6,
+    top: -2,
     fontSize: 12,
     color: isFocused ? '#0f6cbd' : 'black',
     zIndex: 20,
@@ -313,6 +313,8 @@ const BarcodeScan: React.FC<BarcodeScanProps> = ({
     marginHorizontal: 12,
     fontWeight: 'bold',
     marginBottom: 5,
+    borderWidth: isFocused ? 0.3 : 0.3,
+    borderColor: isFocused ? '#0f6cbd' : 'black',
   };
   const handleFocus = () => setIsFocused(true);
   const handleBlur = () => setIsFocused(false);
