@@ -53,6 +53,7 @@ import PreferencesPage from '../pages/PreferencesPage';
 import {syncStock} from '../services/SyncStock';
 import {useNavigationState} from '@react-navigation/native';
 import SalesReturnsPage from '../pages/SalesReturnsPage';
+import getSyncReturns from '../pages/getSyncReturns';
 
 declare function alert(message?: any): void;
 const Stack = createNativeStackNavigator();
@@ -87,7 +88,7 @@ function TabStack({
       // Logic to reload the categories page goes here
       // Example: Fetching new data or updating the component state
       console.log('Reloading Categories...');
-      navigation.navigate('Category');
+      navigation.navigate('Item Type');
     }
   }, [reloadCategory]);
   return (
@@ -106,22 +107,28 @@ function TabStack({
             <FontAwesomeIcon icon={faBars} size={27} color="white" />
           </TouchableOpacity>
         ),
+        headerTitleAlign: 'center',
+        headerTitleStyle: {fontWeight: 'bold', fontSize: 25},
+
         tabBarActiveTintColor: '#0f6cbd',
         tabBarInactiveTintColor: '#565956',
         tabBarLabelStyle: {
           textAlign: 'center',
-          fontSize: 12,
+          fontSize: 15,
+          fontWeight: 'bold',
         },
         tabBarStyle: {
           backgroundColor: 'white',
         },
+        tabBarActiveBackgroundColor: 'white',
+        tabBarInactiveBackgroundColor: '#CECECE',
         headerStyle: {backgroundColor: '#0f6cbd'},
         headerTintColor: 'white',
       })}>
       <Tab.Screen
-        name="Category"
+        name="Item Type"
         options={{
-          tabBarLabel: 'Category',
+          tabBarLabel: 'Item Type',
           tabBarIcon: ({color, size}) => (
             <FontAwesomeIcon icon={faListAlt} size={size} color={color} />
           ),
@@ -175,6 +182,7 @@ function MainTabs({
   console.log(SessionId);
   const mainNavigation: any = useNavigation();
 
+  // This will log the current screen's name
   const [reloadKey, setReloadKey] = useState(false);
   const [dataFromFeatures, setDataFromFeatures] = useState(null);
   const [dataFromFirstPage, setDataFromFirstPage] = useState(null);
@@ -296,6 +304,8 @@ function MainTabs({
   const [orderCount, setOrderCount] = useState(0);
   const [returnCount, setReturnCount] = useState(0);
 
+  const [selectedScreen, setSelectedScreen] = useState('');
+
   // Fetch the order count when the component mounts
   useEffect(() => {
     const fetchOrderCount = async () => {
@@ -307,6 +317,16 @@ function MainTabs({
 
     fetchOrderCount();
   }, [reloadKey]);
+
+  useEffect(() => {
+    const currentScreen =
+      mainNavigation.getState()?.routes[mainNavigation.getState()?.index]?.name;
+
+    if (currentScreen !== selectedScreen) {
+      console.log('currentScreen', currentScreen);
+      setSelectedScreen(currentScreen);
+    }
+  }, [mainNavigation, reloadKey, selectedScreen]);
 
   const navigationView = () => (
     <View style={styles.drawer}>
@@ -327,11 +347,17 @@ function MainTabs({
           </View>
 
           <TouchableOpacity
-            style={styles.drawerItem}
+            style={[
+              styles.drawerItem,
+              selectedScreen === 'TabStack'
+                ? {backgroundColor: '#0f6cbd'}
+                : {backgroundColor: 'white'},
+            ]}
             onPress={() => {
               drawerRef.current?.closeDrawer();
               setReloadCategory(prevState => !prevState); // Toggle the state to trigger a reload
               mainNavigation.navigate('TabStack'); // Navigate to the desired screen
+              setReloadKey(prev => !prev);
             }}>
             <View style={styles.menuItem}>
               <FontAwesomeIcon icon={faShoppingBag} size={25} color="#0f6cbd" />
@@ -339,8 +365,14 @@ function MainTabs({
             </View>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.drawerItem}
+            style={[
+              styles.drawerItem,
+              selectedScreen === 'SalesReturnsPage'
+                ? {backgroundColor: '#0f6cbd'}
+                : {backgroundColor: 'white'},
+            ]}
             onPress={() => {
+              setReloadKey(prev => !prev);
               drawerRef.current?.closeDrawer();
               mainNavigation.navigate('SalesReturnsPage'); // Navigate to the desired screen
             }}>
@@ -497,7 +529,7 @@ function MainTabs({
                     drawerRef.current?.closeDrawer();
                     setIsLoading(true);
                     try {
-                      // await getSyncOrders(); // Call getSyncOrders
+                      await getSyncReturns(); // Call getSyncReturns
                       // setReloadCategory(prevState => !prevState); // Toggle the state to trigger a reload
                       setReloadKey(prev => !prev); // Set the value of reloadKey
                       console.log('Sync Orders pressed');
@@ -613,6 +645,10 @@ function MainTabs({
             name="SalesReturnsPage"
             children={props => (
               <SalesReturnsPage
+                onData={function (data: any): void {
+                  console.log('SalesReturnsPage', data);
+                  setReloadKey(prev => !prev);
+                }}
                 // handleBackPage={handleBackPage}
                 drawerRef={drawerRef}
                 {...props} // Pass any additional props if needed

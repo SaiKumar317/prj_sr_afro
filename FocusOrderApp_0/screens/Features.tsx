@@ -347,19 +347,17 @@ const Features: React.FC<FeaturesProps> = ({
 
   return (
     <View>
-      <ScrollView>
-        <View style={styles.menuDropDown}>
-          <FlatList
-            data={menuItems}
-            renderItem={renderItem}
-            keyExtractor={(item, index) => index.toString()}
-            numColumns={2}
-            contentContainerStyle={styles.flatListContainer}
-            showsVerticalScrollIndicator={false}
-            columnWrapperStyle={styles.columnWrapper}
-          />
-        </View>
-      </ScrollView>
+      <View style={styles.menuDropDown}>
+        <FlatList
+          data={menuItems}
+          renderItem={renderItem}
+          keyExtractor={(item, index) => index.toString()}
+          numColumns={2}
+          contentContainerStyle={styles.flatListContainer}
+          showsVerticalScrollIndicator={false}
+          columnWrapperStyle={styles.columnWrapper}
+        />
+      </View>
     </View>
   );
 };
@@ -370,6 +368,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white', // Lighter background
     minHeight: screenHeight,
     padding: 12,
+    paddingBottom: 100,
   },
   label: {
     fontSize: 16,

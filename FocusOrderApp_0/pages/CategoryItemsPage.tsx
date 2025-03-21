@@ -68,7 +68,10 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
     [key: string]: any;
   }>({}); // Local state for input quantity
   const [isFocused, setIsFocused] = useState({});
-  const [searchTerm, setSearchTerm] = React.useState<any>({}); // State for search input
+  const [searchTerm, setSearchTerm] = React.useState<any>({
+    barCodeValue: '',
+    inputType: '',
+  }); // State for search input
   const [currencyCode, setCurrencyCode] = React.useState('');
   const [loadingStates, setLoadingStates] = React.useState<{
     [key: string]: boolean;

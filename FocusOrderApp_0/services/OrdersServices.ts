@@ -99,11 +99,34 @@ export const getAllSalesOrders = async () => {
     return []; // Return an empty array in case of error
   }
 };
+export const getAllSalesReturns = async () => {
+  const db = await getDBConnection();
+  try {
+    const [results] = await db.executeSql('SELECT * FROM SalesReturn');
+    const salesReturns = [];
+    for (let i = 0; i < results.rows.length; i++) {
+      salesReturns.push(results.rows.item(i));
+    }
+    return salesReturns; // Return the array of sales orders
+  } catch (error) {
+    console.error('Error fetching sales orders:', error);
+    return []; // Return an empty array in case of error
+  }
+};
 
 export const deletePostedOrderFromLocalTable = async (orderId: number) => {
   const db = await getDBConnection();
   try {
     await db.executeSql('DELETE FROM SalesOrders WHERE id = ?', [orderId]);
+    console.log(`Order with ID ${orderId} deleted from local database.`);
+  } catch (error) {
+    console.error('Error deleting order from local database:', error);
+  }
+};
+export const deletePostedSalesReturnFromLocalTable = async (orderId: number) => {
+  const db = await getDBConnection();
+  try {
+    await db.executeSql('DELETE FROM SalesReturn WHERE id = ?', [orderId]);
     console.log(`Order with ID ${orderId} deleted from local database.`);
   } catch (error) {
     console.error('Error deleting order from local database:', error);

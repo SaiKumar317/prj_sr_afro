@@ -607,6 +607,33 @@ export const clearConsumedQtyLocal = async (db: { transaction: (arg0: (tx: any) 
     });
   });
 };
+export const clearConsumedReturnQtyLocal = async (db: { transaction: (arg0: (tx: any) => void) => any; }, returnData: any[]) => {
+  const updateQuery = `
+   UPDATE SalesInvoiceDetails
+    SET 
+      LocalReturn =  COALESCE(LocalReturn, 0) - ?,
+      Balance =  COALESCE(Balance, 0) - ?  
+    WHERE BodyId = ?;
+  `;
+
+  await db.transaction((tx) => {
+    // Loop through each record in SalesInvoiceDetails and execute the update query
+    returnData.forEach(bodyData => {
+      const { Quantity} = bodyData;
+ 
+      const bodyId = bodyData?.['L-Mobile POS Sales Invoice']?.BaseTransactionId;
+      const qtyValue = parseInt(Quantity) || 0;  // In case Qty is null or undefined, default to 0
+      console.log(`Updating bodyId: ${bodyId}, Adding Qty: ${qtyValue}`);
+      tx.executeSql(updateQuery, [qtyValue, qtyValue, bodyId],(tx: any, result: { rowsAffected: any; }) => {
+        // Log the number of rows affected by this update
+        console.log(`Rows affected for bodyId ${bodyId}: ${result.rowsAffected}`);
+      },(tx: any, error: any) => {
+        // Handle any SQL errors
+        console.error("Error updating SalesInvoiceDetails:", error);
+      });
+    });
+  });
+};
 
 
 

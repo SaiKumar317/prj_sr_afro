@@ -332,11 +332,13 @@ async function getSyncOrders() {
           const responseDetails = JSON.stringify(failedOrder.response); // Extract the response details
           logContent += `Order ${
             index + 1
-          } Failed:\Mobile POS Sales Invoice Details: ${orderDetails}\nResponse: ${responseDetails}\n\n`;
+          } Failed:\nMobile POS Sales Invoice Details: ${orderDetails}\nResponse: ${responseDetails}\n\n`;
           logContent += '========================\n';
         });
       } else {
-        logFilePath = `${logsDirectory}/partial_success_sales_invoice_log_${getISTTime()}.txt`;
+        logFilePath = `${logsDirectory}/partial_success_sales_invoice_log_${sanitizeFileName(
+          getISTTime(),
+        )}.txt`;
         logContent +=
           'Some Mobile POS Sales Invoice were placed successfully, others failed.\n\n';
         logContent +=
@@ -422,7 +424,9 @@ async function getSyncOrders() {
       Alert.alert(result.message);
       return;
     }
-  } catch (error) {}
+  } catch (error) {
+    console.log('getSyncOrders error', error);
+  }
 
   //   // Prepare the log content for failed orders
   //   let failedOrdersLogContent = `Failed Orders Log - ${new Date().toISOString()}\n\n`;

@@ -55,14 +55,16 @@ const screenHeight = Dimensions.get('window').height;
 function SalesReturnsPage({
   navigation,
   drawerRef,
+  onData,
   route,
 }: {
   //   handleBackPage: (message: string) => void; // updated type
   navigation: any;
   drawerRef: any;
+  onData: (data: any) => void;
   route: any;
 }) {
-  const [reloadKey, setReloadKey] = useState(0);
+  const [reloadKey, setReloadKey] = useState(true);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -182,7 +184,10 @@ function SalesReturnsPage({
   };
 
   const getSalesInvoiceData = async () => {
-    await syncSalesInvoicesPending();
+    const responseSalesInvoicesPending = await syncSalesInvoicesPending();
+    if (responseSalesInvoicesPending?.message === 'Invalid Session') {
+      showToast(responseSalesInvoicesPending?.message);
+    }
     const storedSalesInvoiceData = await getSalesInvoicesPending();
     if (storedSalesInvoiceData) {
       setSalesInvoiceData(storedSalesInvoiceData);
@@ -194,6 +199,17 @@ function SalesReturnsPage({
     getSalesInvoiceData();
     createSalesReturnTable();
   }, []);
+
+  const reloadSalesInvoiceData = async () => {
+    const storedSalesInvoiceData = await getSalesInvoicesPending();
+    if (storedSalesInvoiceData) {
+      setSalesInvoiceData(storedSalesInvoiceData);
+    }
+  };
+
+  useEffect(() => {
+    reloadSalesInvoiceData();
+  }, [reloadKey]);
 
   useEffect(() => {
     const backAction = () => {
@@ -517,12 +533,12 @@ function SalesReturnsPage({
       );
       var parsedPOSSalesPreferences = JSON.parse(storedPOSSalePreferenceData);
 
-      if (customerName && mobileNum && mobileNum.toString()?.length >= 10) {
+      if (parsedPOSSalesPreferences) {
         if (salesInvoiceDetails) {
           setShowPlaceOrderModal(false);
           let salesOrderRequest = '';
           storedHostname = await AsyncStorage.getItem('hostname');
-          const salesOrderUrl = `${storedHostname}/focus8api/Transactions/1795/`;
+          const salesReturnUrl = `${storedHostname}/focus8api/Transactions/1795/`;
           const bodyData: any = [];
           const db = await getDBConnection();
           const consumedQty: any[] = [];
@@ -642,7 +658,7 @@ function SalesReturnsPage({
           });
 
           const salesOrdersRes = await fetchDataFromApi(
-            salesOrderUrl,
+            salesReturnUrl,
             salesOrderRequest,
           );
 
@@ -673,7 +689,7 @@ function SalesReturnsPage({
                 Header: {
                   Date: dateToInt(new Date()),
                   // Account__Id: parsedPOSSalesPreferences?.CustomerAccount,
-                  CashBankAC__Id: 10669,
+                  CashBankAC__Id: parsedPOSSalesPreferences?.CashAccount,
                   'Company-Branch__Id': parsedPOSSalesPreferences?.compBranchId,
                   Branch__Id: parsedPOSSalesPreferences?.Branch,
                   Employee__Id: parsedPOSSalesPreferences?.employeeId,
@@ -691,7 +707,7 @@ function SalesReturnsPage({
               },
             ],
           };
-          //   if (false) {
+          // if (false) {
           if (salesOrdersRes?.result == 1) {
             const salesReceiptUrl = `${storedHostname}/focus8api/Transactions/4872/`;
             salesReceiptBody.data[0].Header.MobilePOSSalesReturnNo = `${salesOrdersRes?.data?.[0]?.VoucherNo}`;
@@ -702,8 +718,17 @@ function SalesReturnsPage({
 
             if (salesReceiptRes?.result == 1) {
               setIsLoading(false);
+              setSelectedSalesInvoice(null);
+              setSalesInvoiceDetails([]);
+              setReloadKey(prev => !prev);
+
+              // const storedSalesInvoiceData = await getSalesInvoicesPending();
+              // if (storedSalesInvoiceData) {
+              //   setSalesInvoiceData(storedSalesInvoiceData);
+              // }
               setShowPlaceOrderModal(false);
               await updateSalesInvoiceQty(db, filteredSalesInvoiceDetails);
+
               //   await updateConsumedQty(db, consumedQty)
               //     .then(() => {
               //       console.log(
@@ -713,11 +738,11 @@ function SalesReturnsPage({
               //     .catch(error => {
               //       console.error('Error updating ConsumedQty:', error);
               //     });
-              //   Alert.alert(
-              //     'Success',
-              //     `Order placed Successfully\n Mobile POS Sales Invoice.: ${salesOrdersRes?.data?.[0]?.VoucherNo}\n Mobile POS Receipts.: ${salesReceiptRes?.data?.[0]?.VoucherNo}`,
-              //     [{text: 'OK', onPress: () => console.log('OK Pressed')}],
-              //   );
+              Alert.alert(
+                'Success',
+                `Sales Return placed Successfully\n Mobile POS Sales Return.: ${salesOrdersRes?.data?.[0]?.VoucherNo}\n Mobile POS Sale Return Payment.: ${salesReceiptRes?.data?.[0]?.VoucherNo}`,
+                [{text: 'OK', onPress: () => console.log('OK Pressed')}],
+              );
               //   // After order is placed, clear the cart items
               //   await deleteAllCartData()
               //     .then(() => {
@@ -732,7 +757,7 @@ function SalesReturnsPage({
               if (salesReceiptRes?.result == -1) {
                 Alert.alert(
                   'Failed',
-                  `Posting failed for Mobile POS Receipts: ${salesReceiptRes?.message}`,
+                  `Posting failed for Mobile POS Return: ${salesReceiptRes?.message}`,
                 );
               }
 
@@ -786,6 +811,18 @@ function SalesReturnsPage({
 
               setIsLoading(false);
               setShowManditory(false);
+              setSelectedSalesInvoice(null);
+              setSalesInvoiceData([]);
+
+              setReloadKey(prev => !prev);
+              onData({reloadKey});
+
+              // setSalesInvoiceDetails([]);
+              // const storedSalesInvoiceData = await getSalesInvoicesPending();
+              // if (storedSalesInvoiceData) {
+              //   setSalesInvoiceData(storedSalesInvoiceData);
+              // }
+              setShowPlaceOrderModal(false);
               Alert.alert(
                 'Failed', // Title of the alert
                 `Order placement failed: ${
@@ -800,15 +837,15 @@ function SalesReturnsPage({
         setShowManditory(true);
         // showToast('Select Customer Account');
 
-        if (!customerName || !mobileNum || mobileNum.toString()?.length < 10) {
-          showToast(
-            `*Select ${!customerName ? 'POS Customer Name, ' : ''}${
-              !mobileNum || mobileNum.toString()?.length < 10
-                ? 'POS Customer Mobile Number'
-                : ''
-            }`,
-          );
-        }
+        // if (!customerName || !mobileNum || mobileNum.toString()?.length < 10) {
+        //   showToast(
+        //     `*Select ${!customerName ? 'POS Customer Name, ' : ''}${
+        //       !mobileNum || mobileNum.toString()?.length < 10
+        //         ? 'POS Customer Mobile Number'
+        //         : ''
+        //     }`,
+        //   );
+        // }
       }
     } catch (error) {
       console.error('Error placing order:', error);
@@ -900,7 +937,9 @@ function SalesReturnsPage({
           {!selectedSalesInvoice && (
             <>
               <View style={{flex: 1}}>
-                <Text style={{fontSize: 20}}>Select Sales Invoice</Text>
+                <Text style={{fontSize: 20, color: 'black'}}>
+                  Select Sales Invoice
+                </Text>
               </View>
             </>
           )}
@@ -1030,27 +1069,30 @@ function SalesReturnsPage({
               <ScrollView
                 style={[styles.inspect, {width: '100%', marginBottom: 50}]}>
                 <View
-                  style={[
-                    // styles.inspect,
-                    {
-                      flex: 1,
-                      flexDirection: 'row',
-                      justifyContent: 'space-around',
-                      gap: 20,
-                      padding: 5,
-                    },
-                  ]}>
-                  <View style={{flex: 1}}>
-                    <FloatingLabelInput
-                      label={'Cash'}
-                      value={totalCash.toString()}
-                      onChangeText={handleCashChange}
-                      keyboardType="phone-pad"
-                      editable={!isLoading}
-                      autoCapitalize="none"
-                    />
-                  </View>
-                  <View style={{flex: 1}}>
+                  style={{flex: 1, justifyContent: 'space-between', gap: 50}}>
+                  <View>
+                    <View
+                      style={[
+                        styles.inspect,
+                        {
+                          flex: 1,
+                          flexDirection: 'row',
+                          //   justifyContent: 'space-around',
+                          gap: 20,
+                          padding: 5,
+                        },
+                      ]}>
+                      <View style={{flex: 1}}>
+                        <FloatingLabelInput
+                          label={'Cash'}
+                          value={totalCash.toString()}
+                          onChangeText={handleCashChange}
+                          keyboardType="phone-pad"
+                          editable={!isLoading}
+                          autoCapitalize="none"
+                        />
+                      </View>
+                      {/* <View style={{flex: 1}}>
                     <FloatingLabelInput
                       label={'UPI/MP'}
                       value={totalUpiMp.toString()}
@@ -1059,10 +1101,10 @@ function SalesReturnsPage({
                       editable={!isLoading}
                       autoCapitalize="none"
                     />
-                  </View>
-                </View>
+                  </View> */}
+                    </View>
 
-                <View style={{padding: 5}}>
+                    {/* <View style={{padding: 5}}>
                   <FloatingLabelInput
                     label={'POS Customer Name'}
                     value={customerName}
@@ -1073,8 +1115,8 @@ function SalesReturnsPage({
                     editable={!isLoading}
                     autoCapitalize="none"
                   />
-                </View>
-
+                </View> */}
+                    {/* 
                 <View style={{padding: 5}}>
                   <FloatingLabelInput
                     label={'POS Customer Mobile Number'}
@@ -1089,20 +1131,21 @@ function SalesReturnsPage({
                     editable={!isLoading}
                     autoCapitalize="none"
                   />
-                </View>
-                <View style={{padding: 5}}>
-                  <FloatingLabelInput
-                    label={'Narration'}
-                    value={narration}
-                    onChangeText={text =>
-                      setNarration(text.replace(/^\s+/, ''))
-                    }
-                    kbType="default"
-                    editable={!isLoading}
-                    autoCapitalize="none"
-                  />
-                </View>
-                {showManditory && (
+                </View> */}
+                    <View style={{padding: 5}}>
+                      <FloatingLabelInput
+                        label={'Narration'}
+                        value={narration}
+                        onChangeText={text =>
+                          setNarration(text.replace(/^\s+/, ''))
+                        }
+                        kbType="default"
+                        editable={!isLoading}
+                        autoCapitalize="none"
+                      />
+                    </View>
+                  </View>
+                  {/* {showManditory && (
                   <Text style={{color: 'red', paddingBottom: 20}}>
                     {!customerName ||
                     !mobileNum ||
@@ -1114,69 +1157,100 @@ function SalesReturnsPage({
                         }`
                       : ''}
                   </Text>
-                )}
+                )} */}
 
-                <View style={[{alignSelf: 'center'}]}>
-                  <TouchableOpacity
+                  <View
                     style={[
-                      styles.section,
-                      styles.activeSectionBorder,
-                      // !showBillDetails && styles.activeSectionBorder,
-                    ]}
-                    onPress={() => setShowBillDetails(!showBillDetails)}>
-                    {showBillDetails ? (
-                      // <View style={styles.content}>
-                      //   <HTML
-                      //     source={{html: availabilityContent}}
-                      //     contentWidth={width - 64}
-                      //     tagsStyles={customHTMLStyles}
-                      //   />
-                      // </View>
-                      <>
-                        {/* <Text style={styles.billingDetailsHeader}>
+                      {alignSelf: 'center', marginTop: 20},
+                      styles.inspect,
+                    ]}>
+                    <TouchableOpacity
+                      style={[
+                        styles.section,
+                        styles.activeSectionBorder,
+                        // !showBillDetails && styles.activeSectionBorder,
+                      ]}
+                      onPress={() => setShowBillDetails(!showBillDetails)}>
+                      {showBillDetails ? (
+                        // <View style={styles.content}>
+                        //   <HTML
+                        //     source={{html: availabilityContent}}
+                        //     contentWidth={width - 64}
+                        //     tagsStyles={customHTMLStyles}
+                        //   />
+                        // </View>
+                        <>
+                          {/* <Text style={styles.billingDetailsHeader}>
                                     Billing Details
                                   </Text> */}
-                        <Text style={styles.sectionTitle}>Billing Details</Text>
-                        <View style={styles.billContent}>
-                          <View style={styles.billRow}>
-                            <Text style={styles.label}>Total Items:</Text>
-                            <Text style={styles.value}>
-                              {totalVarieties.toFixed(2)}
-                            </Text>
+                          <Text style={styles.sectionTitle}>
+                            Billing Details
+                          </Text>
+                          <View style={styles.billContent}>
+                            <View style={styles.billRow}>
+                              <Text style={styles.label}>Total Items:</Text>
+                              <Text style={styles.value}>
+                                {totalVarieties.toFixed(2)}
+                              </Text>
+                            </View>
+                            <View style={[styles.billRow]}>
+                              <Text style={styles.label}>Total Quantity:</Text>
+                              <Text style={styles.value}>
+                                {totalQuantity.toFixed(2)}
+                              </Text>
+                            </View>
+                            <View style={[styles.billRow, styles.line]}>
+                              <Text style={styles.label}>Total Gross:</Text>
+                              <Text style={styles.value}>
+                                {`+  ${totalCalcGross.toFixed(2)}`}
+                              </Text>
+                            </View>
+                            <View style={styles.billRow}>
+                              <Text style={styles.label}>Total Discount:</Text>
+                              <Text style={styles.value}>
+                                {`-  ${(
+                                  totalCalcDiscountPer + totalCalcDiscountAmt
+                                ).toFixed(2)}`}
+                              </Text>
+                            </View>
+                            <View style={styles.billRow}>
+                              <Text style={styles.label}>Total VAT:</Text>
+                              <Text style={styles.value}>
+                                {`+  ${totalCalcVAT.toFixed(2)}`}
+                              </Text>
+                            </View>
+                            <View style={styles.billRow}>
+                              <Text style={styles.label}>Total Excise:</Text>
+                              <Text style={styles.value}>
+                                {`+  ${totalCalcExcise.toFixed(2)}`}
+                              </Text>
+                            </View>
+                            <View style={[styles.billRow, styles.line]}>
+                              <Text style={styles.label}>
+                                Net Amount:{' '}
+                                {salesInvoiceDetails?.[0]?.CurrencyCode}
+                              </Text>
+                              <Text style={styles.value}>
+                                {totalAmount.toFixed(2)}
+                              </Text>
+                            </View>
                           </View>
-                          <View style={[styles.billRow]}>
-                            <Text style={styles.label}>Total Quantity:</Text>
-                            <Text style={styles.value}>
-                              {totalQuantity.toFixed(2)}
-                            </Text>
-                          </View>
-                          <View style={[styles.billRow, styles.line]}>
-                            <Text style={styles.label}>Total Gross:</Text>
-                            <Text style={styles.value}>
-                              {`+  ${totalCalcGross.toFixed(2)}`}
-                            </Text>
-                          </View>
-                          <View style={styles.billRow}>
-                            <Text style={styles.label}>Total Discount:</Text>
-                            <Text style={styles.value}>
-                              {`-  ${(
-                                totalCalcDiscountPer + totalCalcDiscountAmt
-                              ).toFixed(2)}`}
-                            </Text>
-                          </View>
-                          <View style={styles.billRow}>
-                            <Text style={styles.label}>Total VAT:</Text>
-                            <Text style={styles.value}>
-                              {`+  ${totalCalcVAT.toFixed(2)}`}
-                            </Text>
-                          </View>
-                          <View style={styles.billRow}>
-                            <Text style={styles.label}>Total Excise:</Text>
-                            <Text style={styles.value}>
-                              {`+  ${totalCalcExcise.toFixed(2)}`}
-                            </Text>
-                          </View>
-                          <View style={[styles.billRow, styles.line]}>
+                        </>
+                      ) : (
+                        <View>
+                          <Text style={styles.sectionTitle}>
+                            Billing Details
+                          </Text>
+                          <View
+                            style={[
+                              styles.billRow,
+                              {
+                                borderTopWidth: 1,
+                                borderTopColor: '#ddd',
+                                backgroundColor: '#fafafa',
+                                padding: 15,
+                              },
+                            ]}>
                             <Text style={styles.label}>
                               Net Amount:{' '}
                               {salesInvoiceDetails?.[0]?.CurrencyCode}
@@ -1186,30 +1260,9 @@ function SalesReturnsPage({
                             </Text>
                           </View>
                         </View>
-                      </>
-                    ) : (
-                      <View>
-                        <Text style={styles.sectionTitle}>Billing Details</Text>
-                        <View
-                          style={[
-                            styles.billRow,
-                            {
-                              borderTopWidth: 1,
-                              borderTopColor: '#ddd',
-                              backgroundColor: '#fafafa',
-                              padding: 15,
-                            },
-                          ]}>
-                          <Text style={styles.label}>
-                            Net Amount: {salesInvoiceDetails?.[0]?.CurrencyCode}
-                          </Text>
-                          <Text style={styles.value}>
-                            {totalAmount.toFixed(2)}
-                          </Text>
-                        </View>
-                      </View>
-                    )}
-                  </TouchableOpacity>
+                      )}
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </ScrollView>
               {/* <View style={[styles.billingDetailsContainer, {marginBottom: 60}]}>
@@ -1519,11 +1572,11 @@ const styles = StyleSheet.create({
     flexDirection: 'column', // Image and text in a row
     alignItems: 'center',
   },
-  inspect: {
-    // borderWidth: 2, // 2px border width
-    // borderColor: '#000000', // Black border color
-    // borderStyle: 'solid', // Solid border style (default is solid)
-  },
+  // inspect: {
+  //   borderWidth: 2, // 2px border width
+  //   borderColor: '#000000', // Black border color
+  //   borderStyle: 'solid', // Solid border style (default is solid)
+  // },
   imageContainer: {
     marginRight: 15, // Space between image and text
     borderWidth: 0.4,

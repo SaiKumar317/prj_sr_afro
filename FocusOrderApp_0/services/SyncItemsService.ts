@@ -27,11 +27,12 @@ export const syncItems = async () => {
       body: JSON.stringify({
         data: [{
           Query: `SELECT 
-                   iMasterId as CategoryId, 
-                   sName as CategoryName, 
-                   sCode as CategoryCode 
-                 FROM mPos_Category 
-                 WHERE iStatus = 0 AND bGroup = 0`,
+p.iMasterId as CategoryId, 
+sName as CategoryName, 
+sCode as CategoryCode 
+FROM mCore_itemtype p
+JOIN muCore_itemtype pt on pt.iMasterId = p.iMasterId
+WHERE iStatus = 0 AND bGroup = 0 AND pt.MobilePOS = 'Yes'`,
         }],
       }),
     });
@@ -78,7 +79,7 @@ export const syncItems = async () => {
           data: [{
             Query: ` SELECT 
             mp.pImageName,
-					mp.iCategory as CategoryId,
+					mp.ItemType as CategoryId,
 					mc.sName as CategoryName,
                     p.iMasterId ProductId, 
                     p.sName ProductName,
@@ -96,7 +97,7 @@ export const syncItems = async () => {
                             ELSE spb.iEndDate END DESC), 0) AS Rate
                   FROM mCore_Product p 
                   JOIN muCore_Product mp ON mp.iMasterId = p.iMasterId
-				  JOIN mPos_Category mc on mc.iMasterId = mp.iCategory
+				  JOIN mCore_itemtype mc on mc.iMasterId = mp.ItemType
                   WHERE p.iStatus = 0 AND p.bGroup = 0 AND p.iMasterId <> 0`,
           }],
         }),
@@ -224,8 +225,7 @@ const loadImageForCategory = async (db: SQLite.SQLiteDatabase, categoryId: numbe
       body: JSON.stringify({
         data: [{
           Query: `SELECT CAST(N'' AS XML).value('xs:base64Binary(xs:hexBinary(sql:column("Image")))', 'NVARCHAR(MAX)') as CategoryImage
-                 FROM muPos_Category muc
-                 --JOIN muPos_Category mup ON mup.iMasterId = muc.iMasterId
+                 FROM muCore_itemtype muc
                  WHERE muc.iMasterId = ${categoryId}`,
         }],
       }),
