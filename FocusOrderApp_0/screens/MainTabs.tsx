@@ -304,7 +304,7 @@ function MainTabs({
   const [orderCount, setOrderCount] = useState(0);
   const [returnCount, setReturnCount] = useState(0);
 
-  const [selectedScreen, setSelectedScreen] = useState('');
+  const [selectedScreen, setSelectedScreen] = useState('TabStack');
 
   // Fetch the order count when the component mounts
   useEffect(() => {
@@ -318,15 +318,17 @@ function MainTabs({
     fetchOrderCount();
   }, [reloadKey]);
 
+  const currentScreen =
+    mainNavigation.getState()?.routes[mainNavigation.getState()?.index]?.name;
+  console.log('currentScreenNav', currentScreen);
   useEffect(() => {
-    const currentScreen =
-      mainNavigation.getState()?.routes[mainNavigation.getState()?.index]?.name;
-
     if (currentScreen !== selectedScreen) {
-      console.log('currentScreen', currentScreen);
       setSelectedScreen(currentScreen);
     }
-  }, [mainNavigation, reloadKey, selectedScreen]);
+    // else if (currentScreen === undefined) {
+    //   setSelectedScreen('TabStack');
+    // }
+  }, [currentScreen, mainNavigation, reloadKey, selectedScreen]);
 
   const navigationView = () => (
     <View style={styles.drawer}>
@@ -350,13 +352,23 @@ function MainTabs({
             style={[
               styles.drawerItem,
               selectedScreen === 'TabStack'
-                ? {backgroundColor: '#0f6cbd'}
+                ? {backgroundColor: 'white'}
                 : {backgroundColor: 'white'},
             ]}
             onPress={() => {
               drawerRef.current?.closeDrawer();
               setReloadCategory(prevState => !prevState); // Toggle the state to trigger a reload
               mainNavigation.navigate('TabStack'); // Navigate to the desired screen
+              setSelectedScreen('TabStack');
+              const currentScreen =
+                mainNavigation.getState()?.routes[
+                  mainNavigation.getState()?.index
+                ]?.name;
+
+              if (currentScreen !== selectedScreen) {
+                console.log('currentScreen', currentScreen);
+                // setSelectedScreen(currentScreen);
+              }
               setReloadKey(prev => !prev);
             }}>
             <View style={styles.menuItem}>
@@ -368,18 +380,27 @@ function MainTabs({
             style={[
               styles.drawerItem,
               selectedScreen === 'SalesReturnsPage'
-                ? {backgroundColor: '#0f6cbd'}
+                ? {backgroundColor: 'white'}
                 : {backgroundColor: 'white'},
             ]}
             onPress={() => {
               setReloadKey(prev => !prev);
               drawerRef.current?.closeDrawer();
               mainNavigation.navigate('SalesReturnsPage'); // Navigate to the desired screen
+              const currentScreen =
+                mainNavigation.getState()?.routes[
+                  mainNavigation.getState()?.index
+                ]?.name;
+
+              setSelectedScreen('SalesReturnsPage');
+              if (currentScreen !== selectedScreen) {
+                console.log('currentScreen', currentScreen);
+              }
             }}>
             <View style={styles.menuItem}>
               {/* Return */}
               <FontAwesomeIcon icon={faRightLeft} size={25} color="#0f6cbd" />
-              <Text style={styles.menuItemText}>Returns</Text>
+              <Text style={styles.menuItemText}>Sales Return</Text>
             </View>
           </TouchableOpacity>
 

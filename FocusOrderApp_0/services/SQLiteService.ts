@@ -184,6 +184,7 @@ export const insertSalesInvoicesPending = async (db: SQLite.SQLiteDatabase, data
 };
 
 export const getSalesInvoicesPending = async () => {
+  try {
   const db = await getDBConnection();  // Open the database connection
    var storedPOSSalePreferenceData: any = await AsyncStorage.getItem(
           'POSSalePreferenceData',
@@ -203,7 +204,14 @@ export const getSalesInvoicesPending = async () => {
     salesInvoicesPending.push(results.rows.item(i));  // Push each record into the array
   }
   console.log("salesInvoicesPending",salesInvoicesPending);
-  return salesInvoicesPending;  // Return the array of Sales Invoices Pending
+    return salesInvoicesPending;  // Return the array of Sales Invoices Pending
+    } catch (error){
+    console.log("error", error);
+    return [
+    {label: '', value: 0},
+  ];
+    }
+
 };
 
 export const createSalesInvoiceDetailsTable = async (db: SQLite.SQLiteDatabase) => {
@@ -233,7 +241,6 @@ export const createSalesInvoiceDetailsTable = async (db: SQLite.SQLiteDatabase) 
 
   await db.executeSql(query);
 };
-
 export const insertSalesInvoiceDetails = async (db: SQLite.SQLiteDatabase, data: any[]) => {
   const insertQuery = `INSERT OR REPLACE INTO SalesInvoiceDetails (
     BodyId, 
@@ -255,19 +262,157 @@ export const insertSalesInvoiceDetails = async (db: SQLite.SQLiteDatabase, data:
     POSCustomerMobileNumber,
     POSCustomerName,
     invoiceDate,
-    iMfDate
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?,?);`;
+    iMfDate,
+    LocalReturn
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?,?,?);`;
 
-  await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
-    data.forEach(doc => {
-      const { iBodyId, iHeaderId, sVoucherNo, orderQty, iProduct, Balance,mRate, discountP, discountAmt, vat, excise, iBatchId, sBatchNo, iExpiryDate, companyBranchId,branchId, POSCustomerMobileNumber, POSCustomerName, invoiceDate, iMfDate } = doc;
-      // Insert each SalesInvoiceDetail item into the database
-      tx.executeSql(insertQuery, [
-        iBodyId, iHeaderId, sVoucherNo, orderQty, iProduct, Balance,mRate, discountP, discountAmt, vat, excise, iBatchId, sBatchNo, iExpiryDate, companyBranchId, branchId, POSCustomerMobileNumber, POSCustomerName, invoiceDate, iMfDate,
-      ]);
-    });
+  await db.transaction((tx: { executeSql: (arg0: string, arg1: any[], arg2: (tx: { executeSql: (arg0: string, arg1: any[]) => void; }, result: { rows: { length: number; item: (arg0: number) => { (): any; new(): any; LocalReturn: any; }; }; }) => void, arg3: (error: any) => void) => void; }) => {
+    for (const doc of data) {
+      const {
+        iBodyId, iHeaderId, sVoucherNo, orderQty, iProduct, Balance, mRate, discountP, discountAmt,
+        vat, excise, iBatchId, sBatchNo, iExpiryDate, companyBranchId, branchId, POSCustomerMobileNumber,
+        POSCustomerName, invoiceDate, iMfDate
+      } = doc;
+
+      // Check if the record with the same iBodyId exists
+      tx.executeSql(
+        `SELECT LocalReturn FROM SalesInvoiceDetails WHERE BodyId = ?`,
+        [iBodyId],
+        (tx: { executeSql: (arg0: string, arg1: any[]) => void; }, result: { rows: { length: number; item: (arg0: number) => { (): any; new(): any; LocalReturn: any; }; }; }) => {
+          if (result.rows.length > 0) {
+            // If the record exists, keep the existing LocalReturn value
+            const existingLocalReturn = result.rows.item(0).LocalReturn;
+
+            // Perform the INSERT OR REPLACE while keeping the LocalReturn unchanged
+            tx.executeSql(
+              insertQuery,
+              [
+                iBodyId, iHeaderId, sVoucherNo, orderQty, iProduct, Balance, mRate, discountP, discountAmt,
+                vat, excise, iBatchId, sBatchNo, iExpiryDate, companyBranchId, branchId, POSCustomerMobileNumber,
+                POSCustomerName, invoiceDate, iMfDate, existingLocalReturn // Keep the existing LocalReturn value
+              ]
+            );
+          } else {
+            // If the record doesn't exist, proceed with the insert (including LocalReturn)
+            tx.executeSql(
+              insertQuery,
+              [
+                iBodyId, iHeaderId, sVoucherNo, orderQty, iProduct, Balance, mRate, discountP, discountAmt,
+                vat, excise, iBatchId, sBatchNo, iExpiryDate, companyBranchId, branchId, POSCustomerMobileNumber,
+                POSCustomerName, invoiceDate, iMfDate, 0 // Insert with a default LocalReturn value (0)
+              ]
+            );
+          }
+        },
+        (error) => {
+          console.error('Error executing SELECT query:', error);
+        }
+      );
+    }
   });
 };
+
+
+// export const insertSalesInvoiceDetails = async (db: SQLite.SQLiteDatabase, data: any[]) => {
+//   const insertQuery = `INSERT OR REPLACE INTO SalesInvoiceDetails (
+//     BodyId, 
+//     HeaderId, 
+//     sVoucherNo, 
+//     orderQty,
+//     Product,
+//     Balance,
+//     mRate,
+//     discountP,
+//     discountAmt,
+//     vat,
+//     excise,
+//     BatchId,
+//     BatchNo,
+//     ExpiryDate,
+//     companyBranchId,
+//     branchId,
+//     POSCustomerMobileNumber,
+//     POSCustomerName,
+//     invoiceDate,
+//     iMfDate,
+//     LocalReturn
+//   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?,?,?);`;
+  
+//   try {
+    
+//     // Use db.transaction() to handle batch operations
+//     await db.transaction(async (tx: { executeSql: (arg0: string, arg1: any[], arg2: { (_: any, result: { rows: any[] | PromiseLike<any[]>; }): void; (): void; (): void; }, arg3: { (_: any, error: any): void; (_: any, error: any): void; (_: any, error: any): void; }) => void; }) => {
+//       for (const doc of data) {
+//         const {
+//           iBodyId, iHeaderId, sVoucherNo, orderQty, iProduct, Balance, mRate, discountP, discountAmt,
+//           vat, excise, iBatchId, sBatchNo, iExpiryDate, companyBranchId, branchId, POSCustomerMobileNumber,
+//           POSCustomerName, invoiceDate, iMfDate
+//         } = doc;
+  
+//         // Check if the record with the same iBodyId exists
+//         const [result] = await new Promise<any[]>((resolve, reject) => {
+//           tx.executeSql(
+//             `SELECT LocalReturn FROM SalesInvoiceDetails WHERE BodyId = ?`,
+//             [iBodyId],
+//             () => resolve(result?.rows),
+//             (_: any, error: any) => reject(error)
+//           );
+//         });
+  
+//         if (result.length > 0) {
+//           // If the record exists, keep the existing LocalReturn value
+//           const existingLocalReturn = result.item(0).LocalReturn;
+  
+//           // Perform the INSERT OR REPLACE while keeping the LocalReturn unchanged
+//           await new Promise<void>((resolve, reject) => {
+//             tx.executeSql(
+//               insertQuery,
+//               [
+//                 iBodyId, iHeaderId, sVoucherNo, orderQty, iProduct, Balance, mRate, discountP, discountAmt,
+//                 vat, excise, iBatchId, sBatchNo, iExpiryDate, companyBranchId, branchId, POSCustomerMobileNumber,
+//                 POSCustomerName, invoiceDate, iMfDate, existingLocalReturn // Keep the existing LocalReturn value
+//               ],
+//               () => resolve(),
+//               (_: any, error: any) => reject(error)
+//             );
+//           });
+//         } else {
+//           // If the record doesn't exist, proceed with the insert (including LocalReturn)
+//           try {
+            
+//             await new Promise<void>((resolve, reject) => {
+//               tx.executeSql(
+//                 insertQuery,
+//                 [
+//                   iBodyId, iHeaderId, sVoucherNo, orderQty, iProduct, Balance, mRate, discountP, discountAmt,
+//                   vat, excise, iBatchId, sBatchNo, iExpiryDate, companyBranchId, branchId, POSCustomerMobileNumber,
+//                   POSCustomerName, invoiceDate, iMfDate, 0, // Insert with the new LocalReturn value
+//                 ],
+//                 () => resolve(),
+//                 (_: any, error: any) => reject(error)
+//               );
+//             });
+//           } catch (error) {
+//     console.log("insertSalesInvoiceDetailsError", error);
+//   }
+//         }
+//       }
+//     });
+//   } catch (error) {
+//     console.log("insertSalesInvoiceDetailsError", error);
+//   }
+
+
+//   // await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
+//   //   data.forEach(doc => {
+//   //     const { iBodyId, iHeaderId, sVoucherNo, orderQty, iProduct, Balance,mRate, discountP, discountAmt, vat, excise, iBatchId, sBatchNo, iExpiryDate, companyBranchId,branchId, POSCustomerMobileNumber, POSCustomerName, invoiceDate, iMfDate } = doc;
+//   //     // Insert each SalesInvoiceDetail item into the database
+//   //     tx.executeSql(insertQuery, [
+//   //       iBodyId, iHeaderId, sVoucherNo, orderQty, iProduct, Balance,mRate, discountP, discountAmt, vat, excise, iBatchId, sBatchNo, iExpiryDate, companyBranchId, branchId, POSCustomerMobileNumber, POSCustomerName, invoiceDate, iMfDate,
+//   //     ]);
+//   //   });
+//   // });
+// };
 export const updateSalesInvoiceQty = async (db: SQLite.SQLiteDatabase, data: any[]) => {
   const insertQuery = `
        UPDATE SalesInvoiceDetails

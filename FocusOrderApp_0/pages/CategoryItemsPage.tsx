@@ -607,11 +607,11 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
                         console.log('Invalid quantity entered');
                       } else {
                         console.log(
-                          `Quantity exceeds available stock. Max is ${item.TotalStock}`,
+                          `Quantity exceeds available stock. Maximum is ${item.TotalStock}`,
                         );
                         handleAddProduct(item, 0);
                         showToast(
-                          `Quantity exceeds available stock. Max is ${item.TotalStock}`,
+                          `Quantity exceeds available stock. Maximum is ${item.TotalStock}`,
                         );
                       }
                     }

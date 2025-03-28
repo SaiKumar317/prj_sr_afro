@@ -198,6 +198,8 @@ function App() {
 
   useEffect(() => {
     const backAction = () => {
+      console.log('backAction');
+
       return true;
     };
 

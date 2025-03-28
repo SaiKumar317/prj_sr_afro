@@ -184,15 +184,22 @@ function SalesReturnsPage({
   };
 
   const getSalesInvoiceData = async () => {
+    var storedSalesInvoiceData;
+    storedSalesInvoiceData = await getSalesInvoicesPending();
+    if (storedSalesInvoiceData) {
+      setSalesInvoiceData(storedSalesInvoiceData);
+      // return storedSalesInvoiceData;
+    }
     const responseSalesInvoicesPending = await syncSalesInvoicesPending();
     if (responseSalesInvoicesPending?.message === 'Invalid Session') {
       showToast(responseSalesInvoicesPending?.message);
     }
-    const storedSalesInvoiceData = await getSalesInvoicesPending();
+    storedSalesInvoiceData = await getSalesInvoicesPending();
     if (storedSalesInvoiceData) {
       setSalesInvoiceData(storedSalesInvoiceData);
       return storedSalesInvoiceData;
     }
+
     return [];
   };
   useEffect(() => {
@@ -331,7 +338,7 @@ function SalesReturnsPage({
 
                 {/* Product quantity */}
                 <Text style={styles.subText}>
-                  Invoice Quantity:{' '}
+                  Sales Quantity:{' '}
                   <Text
                     style={{color: 'black', fontWeight: 'bold', fontSize: 17}}>
                     {/* {item.ConsumedQty} */}
@@ -351,7 +358,7 @@ function SalesReturnsPage({
           </View>
           <View style={styles.divider} />
           <View style={styles.quantityContainer}>
-            <Text style={styles.subText}>Quantity: </Text>
+            <Text style={styles.subText}>Sales Return Quantity: </Text>
             <View style={styles.quantityContainer}>
               <TextInput
                 placeholder="Add Quantity"
@@ -379,13 +386,13 @@ function SalesReturnsPage({
                       console.log('Invalid quantity entered');
                     } else {
                       console.log(
-                        `Quantity exceeds Invoice quantity. Max is ${
+                        `Quantity exceeds Sales quantity. Max is ${
                           item.Balance - item.LocalReturn
                         }`,
                       );
                       handleAddProduct(item, 0);
                       showToast(
-                        `Quantity exceeds Invoice quantity. Max is ${
+                        `Quantity exceeds Sales quantity. Maximum is ${
                           item.Balance - item.LocalReturn
                         }`,
                       );
@@ -481,14 +488,17 @@ function SalesReturnsPage({
     }
 
     let cashValue = parseFloat(numericValue || '0');
+    cashValue = totalAmount;
+    console.log('handleCashChange', totalAmount, cashValue, totalCash);
 
     if (cashValue <= totalAmount) {
-      setTotalCash(numericValue.replace(/^0+/, '') || '0');
+      // setTotalCash(numericValue.replace(/^0+/, '') || '0');
+      setTotalCash(totalAmount);
       // Calculate UPI/MP based on total amount
-      cashValue = Math.round(cashValue * 100) / 100;
+      // cashValue = Math.round(cashValue * 100) / 100;
       const newUpiMp = totalAmount - cashValue;
       const roundedUpiMp = Math.round(newUpiMp * 100) / 100;
-      setTotalUpiMp(roundedUpiMp >= 0 ? roundedUpiMp.toString() : '0'); // Ensure UPI/MP is not negative
+      setTotalUpiMp('0'); // Ensure UPI/MP is not negative
     }
   };
 
@@ -814,10 +824,10 @@ function SalesReturnsPage({
               setSelectedSalesInvoice(null);
               setSalesInvoiceData([]);
 
+              setSalesInvoiceDetails([]);
               setReloadKey(prev => !prev);
               onData({reloadKey});
 
-              // setSalesInvoiceDetails([]);
               // const storedSalesInvoiceData = await getSalesInvoicesPending();
               // if (storedSalesInvoiceData) {
               //   setSalesInvoiceData(storedSalesInvoiceData);
