@@ -652,6 +652,7 @@ function MainTabs({
               />
             )}
           </Stack.Screen>
+
           <Stack.Screen
             name="CategoryItems"
             children={props => (

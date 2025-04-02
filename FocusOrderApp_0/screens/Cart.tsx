@@ -567,6 +567,7 @@ function Cart({
                 BatchId: any;
                 BatchNo: any;
                 ExpDate__Id: any;
+                MfgDate__Id: any;
                 Qty: any;
               }[] = [];
               let totalQty = 0;
@@ -584,6 +585,7 @@ function Cart({
                     BatchNo: batch.sBatchNo,
                     // ExpDate: batch.iExpiryDate,
                     ExpDate__Id: batch.iExpiryDateId,
+                    MfgDate__Id: batch.iMfDate,
                     Qty: batchQty,
                   });
                   totalQty += batchQty;

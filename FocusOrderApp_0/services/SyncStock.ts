@@ -25,8 +25,8 @@ export const syncStock = async () => {
       },
       body: JSON.stringify({
         data: [{
-          Query: `select sBatchNo, iBatchId,iExpiryDate, iExpiryDateId,sum(Batch_Qty) BatchQty, iProduct,iInvTag from (
-select i.iProduct, b.sBatchNo, b.iBatchId,convert(varchar,dbo.IntToDate(b.iExpiryDate),103) iExpiryDate,b.iExpiryDate iExpiryDateId, d.iInvTag,
+          Query: `select sBatchNo, iBatchId,iExpiryDate, iExpiryDateId,sum(Batch_Qty) BatchQty, iProduct,iInvTag, iMfDate from (
+select i.iProduct, b.sBatchNo, b.iBatchId,convert(varchar,dbo.IntToDate(b.iExpiryDate),103) iExpiryDate,b.iExpiryDate iExpiryDateId, d.iInvTag,b.iMfDate,
 sum(i.fQuantityInBase) Batch_Qty,MIN(iDate) VoucherDate from tCore_Header_0 h
 join tCore_Data_0 d on d.iHeaderId = h.iHeaderId 
 join tCore_Indta_0 i on i.iBodyId = d.iBodyId
@@ -37,10 +37,10 @@ d.iInvTag = ${parsedPOSSalesPreferences?.warehouseId} and
 h.iDate <= dbo.DateToInt(getdate())
 and h.bUpdateStocks = 1 
 and h.bSuspended = 0 and h.iAuth = 1 and d.bSuspendUpdateStocks = 0 
-group by i.iProduct, b.sBatchNo, b.iBatchId , b.iExpiryDate,d.iInvTag
+group by i.iProduct, b.sBatchNo, b.iBatchId , b.iExpiryDate,d.iInvTag, iMfDate
 having sum(i.fQuantityInBase) <> 0 and  b.iExpiryDate>=dbo.DateToInt(GETDATE())
 )a
-group by sBatchNo, iBatchId ,iExpiryDate,iExpiryDateId, iProduct,iInvTag
+group by sBatchNo, iBatchId ,iExpiryDate,iExpiryDateId, iProduct,iInvTag, iMfDate
 HAVING SUM(a.Batch_Qty) > 0
 order by iExpiryDate`,
         }],

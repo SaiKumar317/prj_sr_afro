@@ -102,6 +102,7 @@ async function getSyncOrders() {
               BatchId: any;
               BatchNo: any;
               ExpDate__Id: any;
+              MfgDate__Id: any;
               Qty: any;
             }[] = [];
             let totalQty = 0;
@@ -119,6 +120,7 @@ async function getSyncOrders() {
                   BatchNo: batch.sBatchNo,
                   // ExpDate: batch.iExpiryDate,
                   ExpDate__Id: batch.iExpiryDateId,
+                  MfgDate__Id: batch.iMfDate,
                   Qty: batchQty,
                 });
                 totalQty += batchQty;
