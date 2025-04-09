@@ -219,7 +219,7 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
         ELSE 0 
     END AS Rate,
     pr.endDate,
-          p.ProductImage,
+          --p.ProductImage,
           p.CategoryId,
           p.CategoryName,
           p.CurrencyId,
@@ -253,7 +253,7 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
     p.ProductName, 
     p.ProductCode, 
     --pr.Rate, 
-    p.ProductImage, 
+   -- p.ProductImage, 
     p.CategoryId, 
     p.CategoryName, 
     p.CurrencyId, 
@@ -270,12 +270,31 @@ const CategoryItemsPage: React.FC<CategoryItemsPageProps> = ({
         console.log('products Total', results.rows.length);
         for (let i = 0; i < results.rows.length; i++) {
           const item = results.rows.item(i);
-          products.push(item);
+          try {
+            // getting product images individually
+            const [productImageResult] = await db.executeSql(
+              'SELECT ProductImage FROM Products WHERE ProductId = ?',
+              [item.ProductId],
+            );
+            // console.log('productImageResult', productImageResult);
+            if (productImageResult.rows.length > 0) {
+              const productImageItem = productImageResult.rows.item(0);
+              // console.log('productImageItem', productImageItem);
 
-          // If product has an image, add it to images object
-          if (item.ProductImage) {
-            images[item.ProductId] = item.ProductImage; // Use ProductId directly
+              if (productImageItem?.ProductImage) {
+                item.ProductImage = productImageItem.ProductImage;
+                images[item.ProductId] = productImageItem.ProductImage;
+              }
+            }
+
+            // // If product has an image, add it to images object
+            // if (item.ProductImage) {
+            //   images[item.ProductId] = item?.ProductImage; // Use ProductId directly
+            // }
+          } catch (error) {
+            console.log('error at productsIMage', error);
           }
+          products.push(item);
         }
 
         setCategoryItems(products);

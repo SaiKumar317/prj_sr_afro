@@ -474,7 +474,8 @@ export const getSalesInvoiceDetails = async (headerId: number) => {
                         sid.POSCustomerName,
                         sid.invoiceDate,
                         sid.iMfDate,
-                        p.ProductImage,
+                        --p.ProductImage,
+                        p.ProductId,
                         p.ProductName,
                         p.ProductCode,
                         p.CurrencyId,
@@ -494,6 +495,21 @@ export const getSalesInvoiceDetails = async (headerId: number) => {
   // Loop through the result set and push each row to the array
   for (let i = 0; i < results.rows.length; i++) {
     salesInvoiceDetails.push(results.rows.item(i));  // Push each record into the array
+
+    // getting ProductImage individually
+
+    try {
+      const [result] = await db.executeSql(`SELECT ProductImage FROM Products WHERE ProductId = ?`, [results.rows.item(i).ProductId]);
+      if (result.rows.length > 0) {
+        const productImage = result.rows.item(0).ProductImage;
+        salesInvoiceDetails[i].ProductImage = productImage;
+        // console.log("productImage sales return", productImage);
+      }
+
+    } catch (error) {
+      console.log("error at getting ProductImage", error);
+    }
+
   }
 
   // console.log("salesInvoiceDetails", salesInvoiceDetails);  // Log the results for debugging

@@ -1,6 +1,19 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDBConnection, recreateProductsTable } from './SQLiteService';
 
+// import { compressImage } from 'react-native-compressor';
+
+// const reduceBase64Image = async (base64Image: string) => {
+//   const compressedBase64 = await compressImage(base64Image, {
+//     compressionMethod: 'auto',
+//     quality: 0.6,       // Reduce quality
+//     maxWidth: 300,      // Resize
+//     returnableOutputType: 'base64', // Required!
+//   });
+
+//   return compressedBase64;
+// };
+
 export const syncItems = async () => {
   try {
     const storedHostname = await AsyncStorage.getItem('hostname');
@@ -29,10 +42,11 @@ export const syncItems = async () => {
           Query: `SELECT 
 p.iMasterId as CategoryId, 
 sName as CategoryName, 
-sCode as CategoryCode 
+sCode as CategoryCode,
+pt.MobilePOS as MobilePOS 
 FROM mCore_itemtype p
 JOIN muCore_itemtype pt on pt.iMasterId = p.iMasterId
-WHERE iStatus = 0 AND bGroup = 0 AND pt.MobilePOS = 'Yes'`,
+WHERE iStatus = 0 AND bGroup = 0 --AND pt.MobilePOS = 'Yes'`,
         }],
       }),
     });
@@ -48,17 +62,18 @@ WHERE iStatus = 0 AND bGroup = 0 AND pt.MobilePOS = 'Yes'`,
           CategoryId INTEGER PRIMARY KEY,
           CategoryName TEXT,
           CategoryCode TEXT,
-          CategoryImage TEXT
+          CategoryImage TEXT,
+          MobilePOS TEXT
         );`
       );
 
       // Insert categories
       await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
-        categoryData.data[0].Table.forEach((category: { CategoryId: any; CategoryName: any; CategoryCode: any; }) => {
+        categoryData.data[0].Table.forEach((category: { CategoryId: any; CategoryName: any; CategoryCode: any; MobilePOS: any; }) => {
           tx.executeSql(
-            `INSERT OR REPLACE INTO Categories (CategoryId, CategoryName, CategoryCode) 
-             VALUES (?, ?, ?);`,
-            [category.CategoryId, category.CategoryName, category.CategoryCode]
+            `INSERT OR REPLACE INTO Categories (CategoryId, CategoryName, CategoryCode, MobilePOS) 
+             VALUES (?, ?, ?, ?);`,
+            [category.CategoryId, category.CategoryName, category.CategoryCode, category.MobilePOS]
           );
         });
       });
@@ -233,6 +248,7 @@ const loadImageForCategory = async (db: SQLite.SQLiteDatabase, categoryId: numbe
 
     const data = await response.json();
     if (data.result === 1 && data.data?.[0]?.Table?.[0]?.CategoryImage) {
+      // const compressedBase64 = await reduceBase64Image(data.data[0].Table[0].CategoryImage);
       await db.executeSql(
         'UPDATE Categories SET CategoryImage = ? WHERE CategoryId = ?',
         [data.data[0].Table[0].CategoryImage, categoryId]

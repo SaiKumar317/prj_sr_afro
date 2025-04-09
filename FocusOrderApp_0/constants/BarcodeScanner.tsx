@@ -213,7 +213,7 @@ const BarcodeScan: React.FC<BarcodeScanProps> = ({
 
     const handleBarCode = onData({
       barCodeValue: e,
-      inputType:'search',
+      inputType: 'search',
     });
     console.log('handleBarCode2', handleBarCode);
     setScannedItem(handleBarCode);
@@ -345,7 +345,7 @@ const BarcodeScan: React.FC<BarcodeScanProps> = ({
               // borderRightWidth: 1,
               // borderColor: '#ccc',
               fontSize: 16,
-              fontWeight:'500',
+              fontWeight: '500',
               padding: 8,
               // marginTop: 6, // Adjust the top margin as needed
               color: 'black',
@@ -368,8 +368,8 @@ const BarcodeScan: React.FC<BarcodeScanProps> = ({
           // } */}
         </View>
         <TouchableOpacity onPress={handleBarCode}>
-          <View style={styles.iconContainer}>
-            <FontAwesomeIcon icon={faBarcode} size={50} color="#0f6cbd" />
+          <View style={styles.barIconContainer}>
+            <FontAwesomeIcon icon={faBarcode} size={28} color="white" />
             {/* <Image
               source={qr_scanner} // Change the path to your PNG image
               style={styles.image}
@@ -468,7 +468,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  iconContainer: {backgroundColor: 'black', marginLeft: 5},
+  iconContainer: {
+    backgroundColor: 'black',
+    marginLeft: 5,
+    width: 50,
+    height: 50,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  barIconContainer: {
+    backgroundColor: '#0f6cbd',
+    marginLeft: 5,
+    width: 55,
+    height: 50,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   modalContainer: {
     height: 200,
     flex: 1,

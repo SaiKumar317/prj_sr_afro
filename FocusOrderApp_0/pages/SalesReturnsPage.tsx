@@ -249,6 +249,23 @@ function SalesReturnsPage({
     try {
       const details = await getSalesInvoiceDetails(headerId); // Only records matching the provided HeaderId and Balance condition
       //   console.log(details); // Do something with the details (e.g., display in the UI)
+      // const db = await getDBConnection();
+      // for (let i = 0; i < details.length; i++) {
+      //   try {
+      //     const [result] = await db.executeSql(
+      //       `SELECT ProductImage FROM Products WHERE ProductId = ?`,
+      //       [details[i].ProductId],
+      //     );
+      //     if (result.rows.length > 0) {
+      //       const productImage = result.rows.item(0).ProductImage;
+      //       //  salesInvoiceDetails[i].ProductImage = productImage;
+      //       details[i].ProductImage = productImage;
+      //       console.log('productImage sales return', productImage);
+      //     }
+      //   } catch (error) {
+      //     console.log('error at getting ProductImage', error);
+      //   }
+      // }
       setSalesInvoiceDetails(details);
     } catch (error) {
       console.error('Error fetching sales invoice details:', error);
@@ -312,7 +329,8 @@ function SalesReturnsPage({
           <View
             style={[styles.inspect, {flexDirection: 'row', paddingBottom: 8}]}>
             <View style={[styles.inspect, styles.imageContainer]}>
-              {item.ProductId && item.ProductImage !== 'AA==' ? (
+              {/* {item.ProductId && item.ProductImage !== 'AA==' ? ( */}
+              {false ? (
                 <View style={[styles.image, styles.loadingImage]}>
                   <ActivityIndicator size="small" color="#51c7d6" />
                 </View>

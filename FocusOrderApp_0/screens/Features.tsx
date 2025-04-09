@@ -26,6 +26,8 @@ import {
 import {useNavigation} from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {getDBConnection} from '../services/SQLiteService';
+
+
 const focus_rt_black = require('../assets/images/focus_rt_black.png');
 declare function alert(message?: any): void;
 let storedHostname;
@@ -213,15 +215,31 @@ const Features: React.FC<FeaturesProps> = ({
         `SELECT 
           CategoryId,
           CategoryName,
-          CategoryCode,
-          CategoryImage
-        FROM Categories`,
+          CategoryCode
+          --,CategoryImage
+        FROM Categories
+        Where MobilePOS = 'Yes' and CategoryId != 0`,
       );
 
       if (results.rows.length > 0) {
         const categories = [];
         for (let i = 0; i < results.rows.length; i++) {
           categories.push(results.rows.item(i));
+          // getting images individually
+          try {
+            const [imageResult] = await db.executeSql(
+              `SELECT CategoryImage FROM Categories WHERE CategoryId = ?`,
+              [results.rows.item(i).CategoryId],
+            );
+            if (imageResult.rows.length > 0) {
+              if (imageResult.rows.item(0)?.CategoryImage) {
+                categories[i].CategoryImage =
+                  imageResult.rows.item(0).CategoryImage;
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching category image:', error);
+          }
         }
         setCategory(categories);
 
@@ -229,7 +247,7 @@ const Features: React.FC<FeaturesProps> = ({
         const imageMap: {[key: string]: string} = {};
         categories.forEach(cat => {
           if (cat.CategoryId && cat.CategoryImage) {
-            imageMap[cat.CategoryId] = cat.CategoryImage;
+            imageMap[cat.CategoryId] = cat?.CategoryImage;
           }
         });
         setCategoryImages(imageMap);
