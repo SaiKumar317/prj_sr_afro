@@ -730,6 +730,7 @@ function Cart({
             ],
           };
           // if (false) {
+          // for testing purpose(withOut internet)
           if (salesOrdersRes?.result == 1) {
             const salesReceiptUrl = `${storedHostname}/focus8api/Transactions/4101/`;
             salesReceiptBody.data[0].Header.MobilePOSSaleNumber = `${salesOrdersRes?.data?.[0]?.VoucherNo}`;
@@ -795,6 +796,7 @@ function Cart({
           } else {
             // Save to local database if result is not 1
             // if (false) {
+            //for testing purpose(withOut internet)
             if (salesOrdersRes?.result == -1) {
               Alert.alert(
                 'Failed', // Title of the alert

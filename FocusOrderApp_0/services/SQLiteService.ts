@@ -12,7 +12,7 @@ const database_size = -1;
 export const getDBConnection = async () => {
   try {
 
-     // Retrieve company code from AsyncStorage
+    // Retrieve company code from AsyncStorage
     const companyCode = await AsyncStorage.getItem('companyCode');
 
     if (!companyCode) {
@@ -176,7 +176,7 @@ export const insertSalesInvoicesPending = async (db: SQLite.SQLiteDatabase, data
 
   await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
     data.forEach(doc => {
-      const {iHeaderId,sVoucherNo,LinkStatus,companyBranchId, branchId } = doc;
+      const { iHeaderId, sVoucherNo, LinkStatus, companyBranchId, branchId } = doc;
       // Insert each SalesInvoicePending item into the database
       tx.executeSql(insertQuery, [iHeaderId, sVoucherNo, LinkStatus, companyBranchId, branchId]);
     });
@@ -185,12 +185,12 @@ export const insertSalesInvoicesPending = async (db: SQLite.SQLiteDatabase, data
 
 export const getSalesInvoicesPending = async () => {
   try {
-  const db = await getDBConnection();  // Open the database connection
-   var storedPOSSalePreferenceData: any = await AsyncStorage.getItem(
-          'POSSalePreferenceData',
-        );
-        var parsedPOSSalesPreferences = JSON.parse(storedPOSSalePreferenceData);
-  const selectQuery = `SELECT distinct s.HeaderId [value], s.sVoucherNo [label], s.companyBranchId, s.branchId  
+    const db = await getDBConnection();  // Open the database connection
+    var storedPOSSalePreferenceData: any = await AsyncStorage.getItem(
+      'POSSalePreferenceData',
+    );
+    var parsedPOSSalesPreferences = JSON.parse(storedPOSSalePreferenceData);
+    const selectQuery = `SELECT distinct s.HeaderId [value], s.sVoucherNo [label], s.companyBranchId, s.branchId  
   FROM SalesInvoicePending s
   JOIN SalesInvoiceDetails d ON s.HeaderId = d.HeaderId
   where s.companyBranchId =${parsedPOSSalesPreferences?.compBranchId} 
@@ -198,19 +198,19 @@ export const getSalesInvoicesPending = async () => {
   and (COALESCE(d.Balance, 0) - COALESCE(d.LocalReturn, 0)) > 0
   Order by s.HeaderId desc;`;  // Select all records from the SalesInvoicePending table
 
-  const [results] = await db.executeSql(selectQuery);  // Execute the SQL query and get the results
-  const salesInvoicesPending = [];  // Initialize an empty array to store the results
-  for (let i = 0; i < results.rows.length; i++) {
-    salesInvoicesPending.push(results.rows.item(i));  // Push each record into the array
-  }
-  console.log("salesInvoicesPending",salesInvoicesPending);
+    const [results] = await db.executeSql(selectQuery);  // Execute the SQL query and get the results
+    const salesInvoicesPending = [];  // Initialize an empty array to store the results
+    for (let i = 0; i < results.rows.length; i++) {
+      salesInvoicesPending.push(results.rows.item(i));  // Push each record into the array
+    }
+    console.log("salesInvoicesPending", salesInvoicesPending);
     return salesInvoicesPending;  // Return the array of Sales Invoices Pending
-    } catch (error){
+  } catch (error) {
     console.log("error", error);
     return [
-    {label: '', value: 0},
-  ];
-    }
+      { label: '', value: 0 },
+    ];
+  }
 
 };
 
@@ -315,9 +315,9 @@ export const insertSalesInvoiceDetails = async (db: SQLite.SQLiteDatabase, data:
 
 // export const insertSalesInvoiceDetails = async (db: SQLite.SQLiteDatabase, data: any[]) => {
 //   const insertQuery = `INSERT OR REPLACE INTO SalesInvoiceDetails (
-//     BodyId, 
-//     HeaderId, 
-//     sVoucherNo, 
+//     BodyId,
+//     HeaderId,
+//     sVoucherNo,
 //     orderQty,
 //     Product,
 //     Balance,
@@ -337,9 +337,9 @@ export const insertSalesInvoiceDetails = async (db: SQLite.SQLiteDatabase, data:
 //     iMfDate,
 //     LocalReturn
 //   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?,?,?,?,?);`;
-  
+
 //   try {
-    
+
 //     // Use db.transaction() to handle batch operations
 //     await db.transaction(async (tx: { executeSql: (arg0: string, arg1: any[], arg2: { (_: any, result: { rows: any[] | PromiseLike<any[]>; }): void; (): void; (): void; }, arg3: { (_: any, error: any): void; (_: any, error: any): void; (_: any, error: any): void; }) => void; }) => {
 //       for (const doc of data) {
@@ -348,7 +348,7 @@ export const insertSalesInvoiceDetails = async (db: SQLite.SQLiteDatabase, data:
 //           vat, excise, iBatchId, sBatchNo, iExpiryDate, companyBranchId, branchId, POSCustomerMobileNumber,
 //           POSCustomerName, invoiceDate, iMfDate
 //         } = doc;
-  
+
 //         // Check if the record with the same iBodyId exists
 //         const [result] = await new Promise<any[]>((resolve, reject) => {
 //           tx.executeSql(
@@ -358,11 +358,11 @@ export const insertSalesInvoiceDetails = async (db: SQLite.SQLiteDatabase, data:
 //             (_: any, error: any) => reject(error)
 //           );
 //         });
-  
+
 //         if (result.length > 0) {
 //           // If the record exists, keep the existing LocalReturn value
 //           const existingLocalReturn = result.item(0).LocalReturn;
-  
+
 //           // Perform the INSERT OR REPLACE while keeping the LocalReturn unchanged
 //           await new Promise<void>((resolve, reject) => {
 //             tx.executeSql(
@@ -379,7 +379,7 @@ export const insertSalesInvoiceDetails = async (db: SQLite.SQLiteDatabase, data:
 //         } else {
 //           // If the record doesn't exist, proceed with the insert (including LocalReturn)
 //           try {
-            
+
 //             await new Promise<void>((resolve, reject) => {
 //               tx.executeSql(
 //                 insertQuery,
@@ -425,7 +425,7 @@ export const updateSalesInvoiceQty = async (db: SQLite.SQLiteDatabase, data: any
       const { Quantity, bodyId } = doc;
       // console.log("inputQty", Quantity, bodyId);
       tx.executeSql(insertQuery, [
-      Quantity, bodyId,
+        Quantity, bodyId,
       ]);
     });
   });
@@ -580,35 +580,85 @@ export const createStockTable = async (db: SQLite.SQLiteDatabase) => {
 
 // Insert data into Stock table
 export const insertStockData = async (db: SQLite.SQLiteDatabase, stockData: any[]) => {
-  const insertQuery = `INSERT INTO Stock (
-    sBatchNo, 
-    iBatchId, 
-    iExpiryDate,
-    iExpiryDateId,
-    BatchQty,
-    ConsumedQty,
-    iProduct,
-    iInvTag,
-    iMfDate
-) 
-VALUES (?, ?, ?, ?, ?, ? , ?, ?, ?)
-ON CONFLICT(iBatchId) DO UPDATE SET
-    sBatchNo = excluded.sBatchNo,
-    iExpiryDate = excluded.iExpiryDate,
-    iExpiryDateId = excluded.iExpiryDateId,
-    BatchQty = excluded.BatchQty,
-    ConsumedQty = excluded.ConsumedQty,
-    iProduct = EXCLUDED.iProduct,
-    iInvTag = excluded.iInvTag,
-    iMfDate = excluded.iMfDate;`;
-  await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
+  await db.transaction((tx: { executeSql: (query: string, params: any[]) => void }) => {
     stockData.forEach(stock => {
-      const { sBatchNo, iBatchId, iExpiryDate, iExpiryDateId, BatchQty, iProduct, iInvTag, iMfDate } = stock;
-      let ieDate = new Date(iExpiryDate.split('/').reverse().join('-')).toISOString();
-      tx.executeSql(insertQuery, [sBatchNo, iBatchId, ieDate, iExpiryDateId, BatchQty, 0, iProduct, iInvTag, iMfDate]);
+      const {
+        sBatchNo,
+        iBatchId,
+        iExpiryDate,
+        iExpiryDateId,
+        BatchQty,
+        iProduct,
+        iInvTag,
+        iMfDate
+      } = stock;
+
+      // Convert date from dd/mm/yyyy to ISO format (yyyy-mm-dd)
+      const ieDate = new Date(iExpiryDate.split('/').reverse().join('-')).toISOString();
+
+      // First try to update the record
+      tx.executeSql(`
+        UPDATE Stock SET
+          sBatchNo = ?,
+          iExpiryDate = ?,
+          iExpiryDateId = ?,
+          BatchQty = ?,
+          ConsumedQty = ?,
+          iProduct = ?,
+          iInvTag = ?,
+          iMfDate = ?
+        WHERE iBatchId = ?;
+      `, [sBatchNo, ieDate, iExpiryDateId, BatchQty, 0, iProduct, iInvTag, iMfDate, iBatchId]);
+
+      // Then insert if the record does not exist
+      tx.executeSql(`
+        INSERT OR IGNORE INTO Stock (
+          sBatchNo,
+          iBatchId,
+          iExpiryDate,
+          iExpiryDateId,
+          BatchQty,
+          ConsumedQty,
+          iProduct,
+          iInvTag,
+          iMfDate
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+      `, [sBatchNo, iBatchId, ieDate, iExpiryDateId, BatchQty, 0, iProduct, iInvTag, iMfDate]);
     });
   });
 };
+
+// // Insert data into Stock table
+// export const insertStockData = async (db: SQLite.SQLiteDatabase, stockData: any[]) => {
+//   const insertQuery = `INSERT INTO Stock (
+//     sBatchNo, 
+//     iBatchId, 
+//     iExpiryDate,
+//     iExpiryDateId,
+//     BatchQty,
+//     ConsumedQty,
+//     iProduct,
+//     iInvTag,
+//     iMfDate
+// ) 
+// VALUES (?, ?, ?, ?, ?, ? , ?, ?, ?)
+// ON CONFLICT(iBatchId) DO UPDATE SET
+//     sBatchNo = excluded.sBatchNo,
+//     iExpiryDate = excluded.iExpiryDate,
+//     iExpiryDateId = excluded.iExpiryDateId,
+//     BatchQty = excluded.BatchQty,
+//     ConsumedQty = excluded.ConsumedQty,
+//     iProduct = EXCLUDED.iProduct,
+//     iInvTag = excluded.iInvTag,
+//     iMfDate = excluded.iMfDate;`;
+//   await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
+//     stockData.forEach(stock => {
+//       const { sBatchNo, iBatchId, iExpiryDate, iExpiryDateId, BatchQty, iProduct, iInvTag, iMfDate } = stock;
+//       let ieDate = new Date(iExpiryDate.split('/').reverse().join('-')).toISOString();
+//       tx.executeSql(insertQuery, [sBatchNo, iBatchId, ieDate, iExpiryDateId, BatchQty, 0, iProduct, iInvTag, iMfDate]);
+//     });
+//   });
+// };
 
 // Get Stock data based on iProduct, iInvTag, and iExpiryDate
 export const getStockData = async (db: SQLite.SQLiteDatabase, iProduct: number, iInvTag: number, iExpiryDate: string) => {
@@ -673,10 +723,10 @@ export const updateConsumedQty = async (db: { transaction: (arg0: (tx: any) => v
       // Ensure Qty is treated as an integer or float (depending on your table schema)
       const qtyValue = parseInt(Qty) || 0;  // In case Qty is null or undefined, default to 0
       console.log(`Updating BatchId: ${BatchId}, Adding Qty: ${qtyValue}`);
-      tx.executeSql(updateQuery, [qtyValue, BatchId],(tx: any, result: { rowsAffected: any; }) => {
+      tx.executeSql(updateQuery, [qtyValue, BatchId], (tx: any, result: { rowsAffected: any; }) => {
         // Log the number of rows affected by this update
         console.log(`Rows affected for BatchId ${BatchId}: ${result.rowsAffected}`);
-      },(tx: any, error: any) => {
+      }, (tx: any, error: any) => {
         // Handle any SQL errors
         console.error("Error updating Stock table:", error);
       });
@@ -717,10 +767,10 @@ export const updateConsumedQtyLocal = async (db: { transaction: (arg0: (tx: any)
       // Ensure Qty is treated as an integer or float (depending on your table schema)
       const qtyValue = parseInt(Qty) || 0;  // In case Qty is null or undefined, default to 0
       console.log(`Updating BatchId: ${BatchId}, Adding Qty: ${qtyValue}`);
-      tx.executeSql(updateQuery, [qtyValue, BatchId],(tx: any, result: { rowsAffected: any; }) => {
+      tx.executeSql(updateQuery, [qtyValue, BatchId], (tx: any, result: { rowsAffected: any; }) => {
         // Log the number of rows affected by this update
         console.log(`Rows affected for BatchId ${BatchId}: ${result.rowsAffected}`);
-      },(tx: any, error: any) => {
+      }, (tx: any, error: any) => {
         // Handle any SQL errors
         console.error("Error updating Stock table:", error);
       });
@@ -728,7 +778,7 @@ export const updateConsumedQtyLocal = async (db: { transaction: (arg0: (tx: any)
   });
 };
 export const updateConsumedReturnQtyLocal = async (db: SQLite.SQLiteDatabase, data: any[]) => {
-const updateQuery = `
+  const updateQuery = `
     UPDATE SalesInvoiceDetails
     SET 
       LocalReturn =  COALESCE(LocalReturn, 0) + ?  
@@ -740,7 +790,7 @@ const updateQuery = `
       const { Quantity, bodyId } = doc;
       // console.log("inputQty", Quantity, bodyId);
       tx.executeSql(updateQuery, [
-      Quantity, bodyId,
+        Quantity, bodyId,
       ]);
     });
   });
@@ -762,10 +812,10 @@ export const clearConsumedQtyLocal = async (db: { transaction: (arg0: (tx: any) 
       // Ensure Qty is treated as an integer or float (depending on your table schema)
       const qtyValue = parseInt(Qty) || 0;  // In case Qty is null or undefined, default to 0
       console.log(`Updating BatchId: ${BatchId}, Adding Qty: ${qtyValue}`);
-      tx.executeSql(updateQuery, [qtyValue, qtyValue, BatchId],(tx: any, result: { rowsAffected: any; }) => {
+      tx.executeSql(updateQuery, [qtyValue, qtyValue, BatchId], (tx: any, result: { rowsAffected: any; }) => {
         // Log the number of rows affected by this update
         console.log(`Rows affected for BatchId ${BatchId}: ${result.rowsAffected}`);
-      },(tx: any, error: any) => {
+      }, (tx: any, error: any) => {
         // Handle any SQL errors
         console.error("Error updating Stock table:", error);
       });
@@ -784,15 +834,15 @@ export const clearConsumedReturnQtyLocal = async (db: { transaction: (arg0: (tx:
   await db.transaction((tx) => {
     // Loop through each record in SalesInvoiceDetails and execute the update query
     returnData.forEach(bodyData => {
-      const { Quantity} = bodyData;
- 
+      const { Quantity } = bodyData;
+
       const bodyId = bodyData?.['L-Mobile POS Sales Invoice']?.BaseTransactionId;
       const qtyValue = parseInt(Quantity) || 0;  // In case Qty is null or undefined, default to 0
       console.log(`Updating bodyId: ${bodyId}, Adding Qty: ${qtyValue}`);
-      tx.executeSql(updateQuery, [qtyValue, qtyValue, bodyId],(tx: any, result: { rowsAffected: any; }) => {
+      tx.executeSql(updateQuery, [qtyValue, qtyValue, bodyId], (tx: any, result: { rowsAffected: any; }) => {
         // Log the number of rows affected by this update
         console.log(`Rows affected for bodyId ${bodyId}: ${result.rowsAffected}`);
-      },(tx: any, error: any) => {
+      }, (tx: any, error: any) => {
         // Handle any SQL errors
         console.error("Error updating SalesInvoiceDetails:", error);
       });

@@ -1,18 +1,18 @@
 import { getDBConnection } from './SQLiteService';
 
-export const insertSalesOrder = async (salesOrderData: any, salesReceiptBody:any,consumedQty: any[],categoryItems:any) => {
+export const insertSalesOrder = async (salesOrderData: any, salesReceiptBody: any, consumedQty: any[], categoryItems: any) => {
   const db = await getDBConnection();
   try {
     await db.executeSql(
       'INSERT INTO SalesOrders (salessInvoicedata, salesReceiptdata,consumedQtydata,categoryItems) VALUES (?, ?, ?, ?)',
-      [salesOrderData, JSON.stringify(salesReceiptBody),JSON.stringify(consumedQty), JSON.stringify(categoryItems)], // Assuming you want to store the entire response as a JSON string
+      [salesOrderData, JSON.stringify(salesReceiptBody), JSON.stringify(consumedQty), JSON.stringify(categoryItems)], // Assuming you want to store the entire response as a JSON string
     );
     console.log('Sales order saved to local database.');
   } catch (error) {
     console.error('Error saving sales order to local database:', error);
   }
 };
-export const insertSalesReturn = async (salesReturnData: any, salesReturnReceiptBody:any) => {
+export const insertSalesReturn = async (salesReturnData: any, salesReturnReceiptBody: any) => {
   const db = await getDBConnection();
   try {
     await db.executeSql(
