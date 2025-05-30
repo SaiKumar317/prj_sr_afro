@@ -54,6 +54,7 @@ import {syncStock} from '../services/SyncStock';
 import {useNavigationState} from '@react-navigation/native';
 import SalesReturnsPage from '../pages/SalesReturnsPage';
 import getSyncReturns from '../pages/getSyncReturns';
+import {getCompanyDetails} from '../services/SQLiteService';
 
 declare function alert(message?: any): void;
 const Stack = createNativeStackNavigator();
@@ -280,18 +281,24 @@ function MainTabs({
   // Add navigation view for drawer
   const [username, setUsername] = useState('');
   const [companyName, setCompanyName] = useState('');
+  const [companyDetails, setCompanyDetails] = useState<any>([]);
 
   useEffect(() => {
     const getUserDetails = async () => {
       try {
         const storedUsername = await AsyncStorage.getItem('username');
         const storedCompanyName = await AsyncStorage.getItem('companyName');
+        const conmpanyDetails = await getCompanyDetails();
+        // console.log('conmpanyDetails', conmpanyDetails[0].companyImage);
 
         if (storedUsername) {
           setUsername(storedUsername);
         }
         if (storedCompanyName) {
           setCompanyName(storedCompanyName);
+        }
+        if (conmpanyDetails) {
+          setCompanyDetails(conmpanyDetails);
         }
       } catch (error) {
         console.error('Error getting user details from storage:', error);
@@ -337,7 +344,11 @@ function MainTabs({
           <View style={styles.drawerHeader}>
             <View style={styles.headerRow}>
               <Image
-                source={require('../assets/images/focus_rt.png')}
+                source={
+                  companyDetails?.[0]?.companyImage
+                    ? {uri: companyDetails?.[0]?.companyImage}
+                    : require('../assets/images/focus_rt.png')
+                }
                 style={styles.headerImage}
                 resizeMode="contain"
               />

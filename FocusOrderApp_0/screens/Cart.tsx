@@ -667,6 +667,12 @@ function Cart({
             }
           }
           console.log('salesOrderRequest', bodyData);
+          // getting fatag from POSSalePreferenceTagData
+          var storedFatag = await AsyncStorage.getItem(
+            'POSSalePreferenceTagData',
+          );
+          var parsedFatag = JSON.parse(storedFatag || '{}');
+          var compBranchCaption = `${parsedFatag.FaTag}__Id`;
           salesOrderRequest = JSON.stringify({
             data: [
               {
@@ -675,7 +681,7 @@ function Cart({
                   Date: dateToInt(new Date()),
                   SalesAC__Id: parsedPOSSalesPreferences?.SalesAccount,
                   CustomerAC__Id: parsedPOSSalesPreferences?.CustomerAccount,
-                  'Company-Branch__Id': parsedPOSSalesPreferences?.compBranchId,
+                  [compBranchCaption]: parsedPOSSalesPreferences?.compBranchId,
                   Warehouse__Id: parsedPOSSalesPreferences?.warehouseId,
                   Branch__Id: parsedPOSSalesPreferences?.Branch,
                   Employee__Id: parsedPOSSalesPreferences?.employeeId,
@@ -719,7 +725,7 @@ function Cart({
                 Header: {
                   Date: dateToInt(new Date()),
                   Account__Id: parsedPOSSalesPreferences?.CustomerAccount,
-                  'Company-Branch__Id': parsedPOSSalesPreferences?.compBranchId,
+                  [compBranchCaption]: parsedPOSSalesPreferences?.compBranchId,
                   Branch__Id: parsedPOSSalesPreferences?.Branch,
                   Employee__Id: parsedPOSSalesPreferences?.employeeId,
                   MobilePOSSaleDate: dateToInt(new Date()),
@@ -804,41 +810,49 @@ function Cart({
                 [{text: 'OK', onPress: () => console.log('OK Pressed')}],
               );
             } else {
-              await insertSalesOrder(
-                salesOrderRequest,
-                salesReceiptBody,
-                consumedQty,
-                categoryItemsArray,
-              ); // Save the response to local DB
-              await deleteAllCartData()
-                .then(() => {
-                  console.log('All data cleared.');
-                })
-                .catch(error => {
-                  console.error('Error clearing data:', error);
-                });
-              await updateConsumedQtyLocal(db, consumedQty)
-                .then(() => {
-                  console.log(
-                    `ConsumedQty updated successfully for ${consumedQty?.length} records.`,
-                  );
-                })
-                .catch(error => {
-                  console.error('Error updating ConsumedQty:', error);
-                });
-              setCartItems([]); // Reset cartItems state
-              setCategoryItems([]); // Reset categoryItems state
-              onData({isLoading: false, isreload: true});
+              if (salesOrdersRes?.message === 'Request timed out') {
+                Alert.alert(
+                  'Failed', // Title of the alert
+                  `Order placement failed: ${salesOrdersRes?.message || ''}`,
+                  [{text: 'OK', onPress: () => console.log('OK Pressed')}],
+                );
+              } else {
+                await insertSalesOrder(
+                  salesOrderRequest,
+                  salesReceiptBody,
+                  consumedQty,
+                  categoryItemsArray,
+                ); // Save the response to local DB
+                await deleteAllCartData()
+                  .then(() => {
+                    console.log('All data cleared.');
+                  })
+                  .catch(error => {
+                    console.error('Error clearing data:', error);
+                  });
+                await updateConsumedQtyLocal(db, consumedQty)
+                  .then(() => {
+                    console.log(
+                      `ConsumedQty updated successfully for ${consumedQty?.length} records.`,
+                    );
+                  })
+                  .catch(error => {
+                    console.error('Error updating ConsumedQty:', error);
+                  });
+                setCartItems([]); // Reset cartItems state
+                setCategoryItems([]); // Reset categoryItems state
+                onData({isLoading: false, isreload: true});
 
-              setIsLoading(false);
-              setShowManditory(false);
-              Alert.alert(
-                'Failed', // Title of the alert
-                `Order placement failed: ${
-                  salesOrdersRes?.message || ''
-                }\n Saved in local`,
-                [{text: 'OK', onPress: () => console.log('OK Pressed')}],
-              );
+                setIsLoading(false);
+                setShowManditory(false);
+                Alert.alert(
+                  'Failed', // Title of the alert
+                  `Order placement failed: ${
+                    salesOrdersRes?.message || ''
+                  }\n Saved in local`,
+                  [{text: 'OK', onPress: () => console.log('OK Pressed')}],
+                );
+              }
             }
           }
         }

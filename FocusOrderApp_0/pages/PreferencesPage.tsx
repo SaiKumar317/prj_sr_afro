@@ -34,6 +34,7 @@ function PreferencesPage({
   const [compBranchList, setCompBranchList] = React.useState<any>([]);
   const [branchList, setBranchList] = React.useState<any>([]);
   const [pOSSalesPreferences, setPOSSalesPreferences] = React.useState<any>({});
+  const [fatag, setFaTag] = React.useState<any>(null);
 
   useEffect(() => {
     getPreferencesData();
@@ -76,8 +77,13 @@ where um.iUserId in (select iUserId from mSec_Users where sLoginName='${storedUs
 from  mSec_UserMasterRestriction um
 join mSec_Users_Roles ur on um.iUserId=ur.iUserId
 join mSec_RoleTransRights urt on urt.iRoleId=ur.iERPRole
-where um.iUserId in (select iUserId from mSec_Users where sLoginName='${storedUsername}') and um.iMasterTypeId=6) and iStatus<>1 and bGroup=0 order by sName`
-            }`, // updated query
+where um.iUserId in (select iUserId from mSec_Users where sLoginName='${storedUsername}') and um.iMasterTypeId=6) and iStatus<>1 and bGroup=0 order by sName;`
+            }
+            select sCaption FaTag, iMasterTypeId
+from v_MasterDef
+where imastertypeid in (select ivalue
+from cCore_PreferenceVal_0
+where ifieldid = 0 and icategory = 0);`, // updated query
           },
         ],
       },
@@ -93,6 +99,20 @@ where um.iUserId in (select iUserId from mSec_Users where sLoginName='${storedUs
     ) {
       setCompBranchList(preferencesData?.data?.[0]?.Table);
       setBranchList(preferencesData?.data?.[0]?.Table1);
+      // store the fetched data in AsyncStorage
+      AsyncStorage.setItem(
+        'POSSalePreferenceTagData',
+        JSON.stringify({
+          FaTag: preferencesData?.data?.[0]?.Table2?.[0]?.FaTag,
+          iMasterTypeId: preferencesData?.data?.[0]?.Table2?.[0]?.iMasterTypeId,
+        }),
+      );
+      console.log(
+        'POSSalePreferenceTagData',
+        preferencesData?.data?.[0]?.Table2?.[0]?.FaTag,
+        preferencesData?.data?.[0]?.Table2?.[0]?.iMasterTypeId,
+      );
+      setFaTag(preferencesData?.data?.[0]?.Table2?.[0]?.FaTag);
     }
   }
 
@@ -220,7 +240,7 @@ select iLinkId [employeeId] from mSec_Users where sLoginName like '${storedUsern
         );
       }
     } else {
-      showToast('Please select Company Branch and Branch');
+      showToast(`Please select ${fatag} and Branch`);
     }
   };
   return (
@@ -270,7 +290,7 @@ select iLinkId [employeeId] from mSec_Users where sLoginName like '${storedUsern
         </View>
         <View style={{flex: 1, padding: 15, marginTop: 20}}>
           <SelectModal
-            label="Company Branch"
+            label={fatag}
             onData={(data: any) => handleSelectedCompBranch(data)}
             value={selectedCompBranch?.label || null}
             items={compBranchList || []}

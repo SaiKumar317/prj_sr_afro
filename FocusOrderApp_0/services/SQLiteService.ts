@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SQLite from 'react-native-sqlite-storage';
+import { get } from 'react-native/Libraries/TurboModule/TurboModuleRegistry';
 
 SQLite.DEBUG(true);
 SQLite.enablePromise(true);
@@ -34,6 +35,45 @@ export const getDBConnection = async () => {
     throw error;
   }
 };
+
+// create company table for image
+export const createCompanyTable = async (db: SQLite.SQLiteDatabase) => {
+  const query = `CREATE TABLE IF NOT EXISTS Company (
+    companyId INTEGER PRIMARY KEY,
+    companyName TEXT,
+    companyImage TEXT
+  );`;
+
+  await db.executeSql(query);
+};
+export const insertCompany = async (db: SQLite.SQLiteDatabase, company: any) => {
+
+
+  const insertQuery = 'INSERT OR REPLACE INTO Company (companyId, companyName, companyImage) VALUES (?, ?, ?);';
+
+  await db.transaction((tx: { executeSql: (arg0: string, arg1: any[]) => void; }) => {
+    const { companyId, companyName, companyImage } = company;
+    tx.executeSql(insertQuery, [companyId, companyName, companyImage]);
+  });
+};
+
+export const getCompanyDetails = async () => {
+  try {
+    const db = await getDBConnection();  // Open the database connection
+    const selectQuery = 'SELECT * FROM Company LIMIT 1;';  // Select all records from the Company table
+
+    const [results] = await db.executeSql(selectQuery);  // Execute the SQL query and get the results
+    const companyData = [];  // Initialize an empty array to store the results
+    for (let i = 0; i < results.rows.length; i++) {
+      companyData.push(results.rows.item(i));  // Push each record into the array
+    }
+    return companyData;  // Return the array of Company data
+  } catch (error) {
+    console.error('Error fetching company data:', error);
+    return [];
+  }
+}
+
 
 export const createCustomersTable = async (db: SQLite.SQLiteDatabase) => {
   const query = `CREATE TABLE IF NOT EXISTS Customers (

@@ -254,15 +254,24 @@ async function getSyncOrders() {
           // // Remove the order from the local table after successful placement
           // await deletePostedOrderFromLocalTable(order.id); // Assuming order.id is the identifier for the order
         } else {
-          console.log(
-            `Failed to place order: ${salesOrdersRes?.message || ''}`,
-          );
-          allSuccess = false; // Mark as partial success
-          partialSuccess = true; // Set flag for partial success
-          failedOrders.push({
-            salessInvoicedata: JSON.parse(order.salessInvoicedata), // Store the order data that failed
-            response: salesOrdersRes, // Store the response for the failed order
-          });
+          if (salesOrdersRes?.message === 'Request timed out') {
+            Alert.alert(
+              'Failed', // Title of the alert
+              `Order placement failed: ${salesOrdersRes?.message || ''}`,
+              [{text: 'OK', onPress: () => console.log('OK Pressed')}],
+            );
+            break;
+          } else {
+            console.log(
+              `Failed to place order: ${salesOrdersRes?.message || ''}`,
+            );
+            allSuccess = false; // Mark as partial success
+            partialSuccess = true; // Set flag for partial success
+            failedOrders.push({
+              salessInvoicedata: JSON.parse(order.salessInvoicedata), // Store the order data that failed
+              response: salesOrdersRes, // Store the response for the failed order
+            });
+          }
         }
       }
       // Function to format current time to IST

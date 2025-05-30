@@ -659,6 +659,12 @@ function SalesReturnsPage({
               ],
             });
           }
+          // getting fatag from POSSalePreferenceTagData
+          var storedFatag = await AsyncStorage.getItem(
+            'POSSalePreferenceTagData',
+          );
+          var parsedFatag = JSON.parse(storedFatag || '{}');
+          var compBranchCaption = `${parsedFatag.FaTag}__Id`;
 
           salesOrderRequest = JSON.stringify({
             data: [
@@ -668,7 +674,7 @@ function SalesReturnsPage({
                   Date: dateToInt(new Date()),
                   SalesAC__Id: parsedPOSSalesPreferences?.SalesAccount,
                   CustomerAC__Id: parsedPOSSalesPreferences?.CustomerAccount,
-                  'Company-Branch__Id': parsedPOSSalesPreferences?.compBranchId,
+                  [compBranchCaption]: parsedPOSSalesPreferences?.compBranchId,
                   Warehouse__Id: parsedPOSSalesPreferences?.warehouseId,
                   Branch__Id: parsedPOSSalesPreferences?.Branch,
                   Employee__Id: parsedPOSSalesPreferences?.employeeId,
@@ -718,7 +724,7 @@ function SalesReturnsPage({
                   Date: dateToInt(new Date()),
                   // Account__Id: parsedPOSSalesPreferences?.CustomerAccount,
                   CashBankAC__Id: parsedPOSSalesPreferences?.CashAccount,
-                  'Company-Branch__Id': parsedPOSSalesPreferences?.compBranchId,
+                  [compBranchCaption]: parsedPOSSalesPreferences?.compBranchId,
                   Branch__Id: parsedPOSSalesPreferences?.Branch,
                   Employee__Id: parsedPOSSalesPreferences?.employeeId,
                   MobilePOSSaleDate:
@@ -821,45 +827,53 @@ function SalesReturnsPage({
                 [{text: 'OK', onPress: () => console.log('OK Pressed')}],
               );
             } else {
-              await insertSalesReturn(salesOrderRequest, salesReceiptBody); // Save the response to local DB
+              if (salesOrdersRes?.message === 'Request timed out') {
+                Alert.alert(
+                  'Failed', // Title of the alert
+                  `Order placement failed: ${salesOrdersRes?.message || ''}`,
+                  [{text: 'OK', onPress: () => console.log('OK Pressed')}],
+                );
+              } else {
+                await insertSalesReturn(salesOrderRequest, salesReceiptBody); // Save the response to local DB
 
-              await updateConsumedReturnQtyLocal(
-                db,
-                filteredSalesInvoiceDetails,
-              )
-                .then(() => {
-                  console.log(
-                    `updateConsumedReturnQtyLocal updated successfully for ${filteredSalesInvoiceDetails?.length} records.`,
-                  );
-                })
-                .catch(error => {
-                  console.error(
-                    'Error updating updateConsumedReturnQtyLocal:',
-                    error,
-                  );
-                });
+                await updateConsumedReturnQtyLocal(
+                  db,
+                  filteredSalesInvoiceDetails,
+                )
+                  .then(() => {
+                    console.log(
+                      `updateConsumedReturnQtyLocal updated successfully for ${filteredSalesInvoiceDetails?.length} records.`,
+                    );
+                  })
+                  .catch(error => {
+                    console.error(
+                      'Error updating updateConsumedReturnQtyLocal:',
+                      error,
+                    );
+                  });
 
-              setIsLoading(false);
-              setShowManditory(false);
-              setSelectedSalesInvoice(null);
-              setSalesInvoiceData([]);
+                setIsLoading(false);
+                setShowManditory(false);
+                setSelectedSalesInvoice(null);
+                setSalesInvoiceData([]);
 
-              setSalesInvoiceDetails([]);
-              setReloadKey(prev => !prev);
-              onData({reloadKey});
+                setSalesInvoiceDetails([]);
+                setReloadKey(prev => !prev);
+                onData({reloadKey});
 
-              // const storedSalesInvoiceData = await getSalesInvoicesPending();
-              // if (storedSalesInvoiceData) {
-              //   setSalesInvoiceData(storedSalesInvoiceData);
-              // }
-              setShowPlaceOrderModal(false);
-              Alert.alert(
-                'Failed', // Title of the alert
-                `Order placement failed: ${
-                  salesOrdersRes?.message || ''
-                }\n Saved in local`,
-                [{text: 'OK', onPress: () => console.log('OK Pressed')}],
-              );
+                // const storedSalesInvoiceData = await getSalesInvoicesPending();
+                // if (storedSalesInvoiceData) {
+                //   setSalesInvoiceData(storedSalesInvoiceData);
+                // }
+                setShowPlaceOrderModal(false);
+                Alert.alert(
+                  'Failed', // Title of the alert
+                  `Order placement failed: ${
+                    salesOrdersRes?.message || ''
+                  }\n Saved in local`,
+                  [{text: 'OK', onPress: () => console.log('OK Pressed')}],
+                );
+              }
             }
           }
         }

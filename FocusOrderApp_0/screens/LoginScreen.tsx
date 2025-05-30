@@ -28,6 +28,11 @@ import {FontAwesomeIcon} from '@fortawesome/react-native-fontawesome';
 import renderLoadingView from '../constants/LoadingView';
 import SelectModal from '../constants/SelectModal';
 import FloatingLabelInput from '../constants/FloatingLabelInput';
+import {
+  createCompanyTable,
+  getDBConnection,
+  insertCompany,
+} from '../services/SQLiteService';
 
 // Declare the `alert` function to resolve TypeScript error
 declare function alert(message?: any): void;
@@ -157,6 +162,37 @@ const LoginScreen: React.FC<LoginPageProps> = ({onData}) => {
           'focusSessoin',
           fSessionId.data[0].fSessionId,
         );
+        var storedHostname = await AsyncStorage.getItem('hostname');
+        var storedUsername = await AsyncStorage.getItem('username');
+        console.log(
+          'storedUsername',
+          storedUsername,
+          storedUsername?.toUpperCase() !== 'SU',
+        );
+        const compLogo = await fetchDataFromFApi(
+          `${storedHostname}/focus8API/utility/executesqlquery`,
+          {
+            data: [
+              {
+                Query: `SELECT sCompanyName companyName, iCompanyId companyId, CASE WHEN pLogo IS NOT NULL THEN 'data:image/png;base64,' + CAST('' as XML).value('xs:base64Binary(sql:column(''pLogo''))', 'VARCHAR(MAX)') ELSE NULL END as companyImage FROM mCore_Company;`,
+              },
+            ],
+          },
+        );
+        if (
+          compLogo &&
+          compLogo?.data &&
+          compLogo?.result === 1 &&
+          compLogo?.data?.[0]?.Table &&
+          compLogo?.data?.[0]?.Table?.length > 0
+        ) {
+          const companyDetails = compLogo.data[0].Table[0];
+          if (companyDetails) {
+            const db = await getDBConnection();
+            await createCompanyTable(db);
+            await insertCompany(db, companyDetails);
+          }
+        }
         await handleSessionId();
         setIsLoading(false);
         return;
@@ -195,6 +231,54 @@ const LoginScreen: React.FC<LoginPageProps> = ({onData}) => {
       console.error('There was a problem with the fetch request:', error);
       alert(error);
       setIsLoading(false);
+    }
+  };
+
+  const fetchDataFromFApi = async (url: any, requestData: any) => {
+    try {
+      // onData({isLoading: true});
+      setIsLoading(true);
+      const storedFocusSessoin = await AsyncStorage.getItem('focusSessoin');
+      const response = await fetch(url, {
+        method: requestData !== '' ? 'POST' : 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          fSessionId: storedFocusSessoin || '',
+        },
+        // body: JSON.stringify(requestData),
+        // Conditionally add the body if the method is POST
+        ...(requestData !== '' && {
+          body: JSON.stringify(requestData), // Only include the body if method is POST
+        }),
+      });
+      console.log('response', response);
+      if (!response.ok) {
+        setIsLoading(false);
+        // onData({isLoading: false});
+        // onDataFromLoginPage;
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      if (data.result === 1) {
+        console.log('JsonData', data);
+        // alert(data.data[0].fSessionId);
+        // setApiData(data);
+        return data;
+      } else {
+        // alert(data.message);
+
+        setIsLoading(false);
+        // onData;
+        return data;
+      }
+    } catch (error) {
+      console.error('There was a problem with the fetch request:', error);
+      alert(error);
+      setIsLoading(false);
+      //   onData({isLoading: false});
+    } finally {
+      setIsLoading(false);
+      //   onData({isLoading: false});
     }
   };
   const fetchCompanyDataFromApi = async (url: any, timeout = 15000) => {
