@@ -1,31 +1,37 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getDBConnection, createPricesTable, insertPrices } from '../services/SQLiteService';
+import {
+  getDBConnection,
+  createPricesTable,
+  insertPrices,
+} from '../services/SQLiteService';
 
 export const syncPrices = async () => {
   try {
     const storedHostname = await AsyncStorage.getItem('hostname');
     const storedFocusSession = await AsyncStorage.getItem('focusSessoin');
-     var storedPOSSalePreferenceData: any = await AsyncStorage.getItem(
-        'POSSalePreferenceData',
-      );
-      var parsedPOSSalesPreferences = JSON.parse(storedPOSSalePreferenceData);
-
+    var storedPOSSalePreferenceData: any = await AsyncStorage.getItem(
+      'POSSalePreferenceData',
+    );
+    var parsedPOSSalesPreferences = JSON.parse(storedPOSSalePreferenceData);
 
     if (!storedHostname || !storedFocusSession) {
       throw new Error('Missing hostname or session information');
     }
- const controller = new AbortController();
+    const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
 
-    const response = await fetch(`${storedHostname}/focus8API/utility/executesqlquery`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'fSessionId': storedFocusSession,
-      },
-      body: JSON.stringify({
-        data: [{
-          Query: `SELECT 
+    const response = await fetch(
+      `${storedHostname}/focus8API/utility/executesqlquery`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          fSessionId: storedFocusSession,
+        },
+        body: JSON.stringify({
+          data: [
+            {
+              Query: `SELECT 
                     p.iMasterId ProductId, 
                     p.sName ProductName,
                     p.sCode ProductCode,
@@ -43,11 +49,13 @@ export const syncPrices = async () => {
                   FROM mCore_Product p 
                   JOIN muCore_Product mp ON mp.iMasterId = p.iMasterId
                   WHERE iStatus = 0 AND bGroup = 0 AND p.iMasterId <> 0`,
-        }],
-      }),
-      signal: controller.signal, // Attach the abort signal
-    });
-  clearTimeout(timeoutId); // Clear the timeout if the request completes in time
+            },
+          ],
+        }),
+        signal: controller.signal, // Attach the abort signal
+      },
+    );
+    clearTimeout(timeoutId); // Clear the timeout if the request completes in time
 
     if (!response.ok) {
       throw new Error('Network response was not ok');
@@ -57,8 +65,8 @@ export const syncPrices = async () => {
 
     if (data.result === 1 && data.data?.[0]?.Table) {
       const db = await getDBConnection();
-      await createPricesTable(db);  // Create the Prices table
-      await insertPrices(db, data.data[0].Table);  // Insert the price data
+      await createPricesTable(db); // Create the Prices table
+      await insertPrices(db, data.data[0].Table); // Insert the price data
 
       return {
         success: true,
@@ -68,7 +76,6 @@ export const syncPrices = async () => {
     } else {
       throw new Error(data.message || 'Failed to sync prices');
     }
-
   } catch (error: any) {
     console.error('Error syncing prices:', error);
     return {
@@ -78,4 +85,3 @@ export const syncPrices = async () => {
     };
   }
 };
-

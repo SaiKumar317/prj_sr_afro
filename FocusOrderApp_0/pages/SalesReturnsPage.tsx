@@ -170,6 +170,7 @@ function SalesReturnsPage({
     setTotalCash(totalAmt.toFixed(2));
     setTotalUpiMp(0); // Assuming you will set this value elsewhere
     setTotalVarieties(totalVarieties);
+    setNarration('');
   };
 
   //   Update the billing details whenever salesInvoiceDetails or cartItems change
@@ -361,6 +362,14 @@ function SalesReturnsPage({
                     style={{color: 'black', fontWeight: 'bold', fontSize: 17}}>
                     {/* {item.ConsumedQty} */}
                     {item.orderQty}
+                  </Text>
+                </Text>
+                {/* previous return qty */}
+                <Text style={styles.subText}>
+                  Previous Return Qty:{' '}
+                  <Text
+                    style={{color: 'black', fontWeight: 'bold', fontSize: 17}}>
+                    {item.orderQty - (item.Balance - item.LocalReturn)}
                   </Text>
                 </Text>
                 {/* Product Rate */}

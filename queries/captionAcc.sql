@@ -14,8 +14,6 @@ where imastertypeid in (select ivalue
 from cCore_PreferenceVal_0
 where ifieldid = 1 and icategory = 0)
 
-
-
 select *
 from mCore_
 {dynmastername} where iStatus<> and iMasterId>0
@@ -62,5 +60,5 @@ from v_MasterDef
 where imastertypeid in (select ivalue
 from cCore_PreferenceVal_0
 where ifieldid = 1 and icategory = 0)
-SELECT *, CASE WHEN pLogo IS NOT NULL THEN 'data:image/jpeg;base64,' + CAST('' as XML).value('xs:base64Binary(sql:column(''pLogo''))', 'VARCHAR(MAX)') ELSE NULL END as Base64Logo
+SELECT sCompanyName, iCompanyId, CASE WHEN pLogo IS NOT NULL THEN 'data:image/jpeg;base64,' + CAST('' as XML).value('xs:base64Binary(sql:column(''pLogo''))', 'VARCHAR(MAX)') ELSE NULL END as Base64Logo
 FROM mCore_Company;

@@ -1,18 +1,31 @@
-import { getDBConnection } from './SQLiteService';
+import {getDBConnection} from './SQLiteService';
 
-export const insertSalesOrder = async (salesOrderData: any, salesReceiptBody: any, consumedQty: any[], categoryItems: any) => {
+export const insertSalesOrder = async (
+  salesOrderData: any,
+  salesReceiptBody: any,
+  consumedQty: any[],
+  categoryItems: any,
+) => {
   const db = await getDBConnection();
   try {
     await db.executeSql(
       'INSERT INTO SalesOrders (salessInvoicedata, salesReceiptdata,consumedQtydata,categoryItems) VALUES (?, ?, ?, ?)',
-      [salesOrderData, JSON.stringify(salesReceiptBody), JSON.stringify(consumedQty), JSON.stringify(categoryItems)], // Assuming you want to store the entire response as a JSON string
+      [
+        salesOrderData,
+        JSON.stringify(salesReceiptBody),
+        JSON.stringify(consumedQty),
+        JSON.stringify(categoryItems),
+      ], // Assuming you want to store the entire response as a JSON string
     );
     console.log('Sales order saved to local database.');
   } catch (error) {
     console.error('Error saving sales order to local database:', error);
   }
 };
-export const insertSalesReturn = async (salesReturnData: any, salesReturnReceiptBody: any) => {
+export const insertSalesReturn = async (
+  salesReturnData: any,
+  salesReturnReceiptBody: any,
+) => {
   const db = await getDBConnection();
   try {
     await db.executeSql(
@@ -67,7 +80,9 @@ export const createSalesReturnTable = async () => {
 export const getSalesOrderCount = async () => {
   const db = await getDBConnection();
   try {
-    const [results] = await db.executeSql('SELECT COUNT(*) as count FROM SalesOrders');
+    const [results] = await db.executeSql(
+      'SELECT COUNT(*) as count FROM SalesOrders',
+    );
     return results.rows.item(0).count; // Return the count of orders
   } catch (error) {
     console.error('Error fetching sales order count:', error);
@@ -77,7 +92,9 @@ export const getSalesOrderCount = async () => {
 export const getSalesReturnCount = async () => {
   const db = await getDBConnection();
   try {
-    const [results] = await db.executeSql('SELECT COUNT(*) as count FROM SalesReturn');
+    const [results] = await db.executeSql(
+      'SELECT COUNT(*) as count FROM SalesReturn',
+    );
     return results.rows.item(0).count; // Return the count of orders
   } catch (error) {
     console.error('Error fetching sales Return count:', error);
@@ -123,7 +140,9 @@ export const deletePostedOrderFromLocalTable = async (orderId: number) => {
     console.error('Error deleting order from local database:', error);
   }
 };
-export const deletePostedSalesReturnFromLocalTable = async (orderId: number) => {
+export const deletePostedSalesReturnFromLocalTable = async (
+  orderId: number,
+) => {
   const db = await getDBConnection();
   try {
     await db.executeSql('DELETE FROM SalesReturn WHERE id = ?', [orderId]);

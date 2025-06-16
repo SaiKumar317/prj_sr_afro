@@ -1,4 +1,4 @@
-import { getDBConnection } from './SQLiteService';
+import {getDBConnection} from './SQLiteService';
 
 export const createCartTable = async () => {
   const db = await getDBConnection();
@@ -13,16 +13,13 @@ export const addToCart = async (productId: number, quantity: number) => {
   const db = await getDBConnection();
   await db.executeSql(
     'INSERT OR REPLACE INTO Cart (ProductId, Quantity) VALUES (?, ?);',
-    [productId, quantity]
+    [productId, quantity],
   );
 };
 
 export const removeFromCart = async (productId: number) => {
   const db = await getDBConnection();
-  await db.executeSql(
-    'DELETE FROM Cart WHERE ProductId = ?;',
-    [productId]
-  );
+  await db.executeSql('DELETE FROM Cart WHERE ProductId = ?;', [productId]);
 };
 
 export const getCartItems = async () => {
@@ -31,11 +28,10 @@ export const getCartItems = async () => {
   const cartItems = [];
   for (let i = 0; i < results.rows.length; i++) {
     cartItems.push(results.rows.item(i));
-    }
-    // console.log("getCartItems",cartItems);
+  }
+  // console.log("getCartItems",cartItems);
   return cartItems;
 };
-
 
 // Function to delete all cart data from the specified tables
 export const deleteAllCartData = async () => {

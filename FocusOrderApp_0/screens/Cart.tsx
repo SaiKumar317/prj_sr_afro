@@ -111,6 +111,7 @@ function Cart({
   const [showPlaceOrderModal, setShowPlaceOrderModal] = useState(false);
   const [customerAccounts, setCustomerAccounts] = useState<any[]>([]); // State to hold customer accounts
   const [showBillDetails, setShowBillDetails] = useState(false);
+  const [totalAmtPaid, setTotalAmtPaid] = useState<any>(0);
   const [totalCash, setTotalCash] = useState<any>(0);
   const [totalUpiMp, setTotalUpiMp] = useState<any>(0);
   const [customerName, setCustomerName] = useState<any>(null);
@@ -202,6 +203,7 @@ function Cart({
     setTotalQuantity(totalQty);
     setTotalAmount(totalAmt);
     setTotalCash(totalAmt.toFixed(2));
+    setTotalAmtPaid(0);
     setTotalUpiMp(0);
     setTotalVarieties(totalVarieties);
   };
@@ -539,6 +541,7 @@ function Cart({
       var parsedPOSSalesPreferences = JSON.parse(storedPOSSalePreferenceData);
 
       if (customerName && mobileNum && mobileNum.toString()?.length >= 10) {
+        // if (parseFloat(totalAmtPaid) - totalAmount > 0) {
         if (categoryItems) {
           setShowPlaceOrderModal(false);
           let salesOrderRequest = '';
@@ -856,6 +859,12 @@ function Cart({
             }
           }
         }
+        // } else {
+        //   setShowManditory(true);
+        //   showToast(
+        //     `*Total Amount Paid should be greater than or equal to Total Amount`,
+        //   );
+        // }
       } else {
         setShowManditory(true);
         // showToast('Select Customer Account');
@@ -1131,6 +1140,30 @@ function Cart({
     // loadCustomerAccounts();
   }, [reloadCategory]);
 
+  // Function to handle Amtount paid input change
+  const handleAmtPaidChange = (text: string) => {
+    // Allow only numbers and a single decimal point
+    const numericValue = text.replace(/[^0-9.]/g, ''); // Allow only numbers and decimal point
+
+    // Ensure there is only one decimal point
+    const splitText = numericValue.split('.');
+    if (splitText.length > 2) {
+      // If there are multiple decimal points, take only the first part
+      return;
+    }
+
+    let cashValue = parseFloat(numericValue || '0');
+
+    setTotalAmtPaid(numericValue);
+    // if (cashValue <= totalAmount) {
+    //   setTotalAmtPaid(numericValue.replace(/^0+/, '') || '0');
+    //   // // Calculate UPI/MP based on total amount
+    //   // cashValue = Math.round(cashValue * 100) / 100;
+    //   // const newUpiMp = totalAmount - cashValue;
+    //   // const roundedUpiMp = Math.round(newUpiMp * 100) / 100;
+    //   // setTotalUpiMp(roundedUpiMp >= 0 ? roundedUpiMp.toString() : '0'); // Ensure UPI/MP is not negative
+    // }
+  };
   // Function to handle cash input change
   const handleCashChange = (text: string) => {
     // Allow only numbers and a single decimal point
@@ -1392,6 +1425,42 @@ function Cart({
                   />
                 </View>
               </View>
+              <View
+                style={[
+                  // styles.inspect,
+                  {
+                    flex: 1,
+                    flexDirection: 'row',
+                    justifyContent: 'space-around',
+                    gap: 20,
+                    padding: 5,
+                  },
+                ]}>
+                <View style={{flex: 1}}>
+                  <FloatingLabelInput
+                    label={'Amount Paid'}
+                    value={totalAmtPaid.toString().replace(/^0+/, '')}
+                    onChangeText={handleAmtPaidChange}
+                    keyboardType="phone-pad"
+                    editable={!isLoading}
+                    autoCapitalize="none"
+                  />
+                </View>
+                <View style={{flex: 1}}>
+                  <FloatingLabelInput
+                    label={'Balance'}
+                    value={
+                      totalAmtPaid <= 0 || isNaN(totalAmtPaid)
+                        ? '0'
+                        : (totalAmtPaid - totalAmount)?.toFixed(2)?.toString()
+                    }
+                    // onChangeText={handleUpiMpChange}
+                    keyboardType="phone-pad"
+                    editable={false}
+                    autoCapitalize="none"
+                  />
+                </View>
+              </View>
 
               <View style={{padding: 5}}>
                 <FloatingLabelInput
@@ -1413,7 +1482,7 @@ function Cart({
                   onChangeText={mobileNum => {
                     const inputNum = mobileNum.replace(/[^0-9]/g, '');
                     if (inputNum.length <= 16) {
-                      setMobileNum(inputNum.replace(/^0+/, '') || '0');
+                      setMobileNum(inputNum);
                     }
                   }}
                   keyboardType="phone-pad"

@@ -6,12 +6,14 @@ interface FloatingLabelInputProps {
   label: string;
   value?: string;
   onChangeText?: (text: string) => void;
+  editable?: boolean;
 }
 
 const FloatingLabelInput: React.FC<FloatingLabelInputProps> = ({
   label,
   value,
   onChangeText,
+  editable = true,
   ...props
 }) => {
   const [isFocused, setIsFocused] = useState(false);
@@ -38,6 +40,10 @@ const FloatingLabelInput: React.FC<FloatingLabelInputProps> = ({
     borderColor: isFocused ? '#0f6cbd' : 'black',
   };
 
+  const inputBackgroundColor = editable
+    ? '#daedf5' // Editable but not focused and no value
+    : '#e0e0e0'; // Non-editable, gray background
+
   return (
     <View style={{paddingTop: 18}}>
       <Animated.Text style={labelStyle}>{label}</Animated.Text>
@@ -49,6 +55,7 @@ const FloatingLabelInput: React.FC<FloatingLabelInputProps> = ({
         placeholder={label}
         placeholderTextColor="#8e918e"
         onChangeText={onChangeText}
+        editable={editable}
         style={{
           borderRadius: 8,
           // borderBottomWidth: 1,
@@ -62,7 +69,7 @@ const FloatingLabelInput: React.FC<FloatingLabelInputProps> = ({
           padding: 8,
           // marginTop: 6, // Adjust the top margin as needed
           color: 'black',
-          backgroundColor: '#daedf5',
+          backgroundColor: inputBackgroundColor,
           marginBottom: 20,
           shadowOpacity: 0.25,
           shadowRadius: 3.84,
